@@ -1,0 +1,5 @@
+{
+  "name": "Deals Dashboard",
+  "description": "A responsive dashboard for managing deals, featuring a video onboarding section, sidebar navigation, and user support integration.",
+  "requestFramePermissions": []
+}
