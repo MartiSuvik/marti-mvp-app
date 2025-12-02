@@ -19,7 +19,7 @@ export const ForAgencies: React.FC = () => {
           <div className="flex justify-between items-center">
             <div className="flex items-center">
               <img 
-                src="/assets/logo.svg" 
+                src="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" 
                 alt="AgencyMatch" 
                 className="h-12 w-auto" 
               />
@@ -218,7 +218,7 @@ export const ForAgencies: React.FC = () => {
             <div>
               <div className="flex items-center mb-3">
                 <img 
-                  src="/assets/logo.svg" 
+                  src="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" 
                   alt="AgencyMatch" 
                   className="h-8 w-auto" 
                 />

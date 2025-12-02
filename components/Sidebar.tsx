@@ -28,7 +28,7 @@ export const Sidebar: React.FC = () => {
       <div className="p-6">
         <Link to="/deals" className="flex items-center group">
           <img 
-            src="/assets/logo.svg" 
+            src="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" 
             alt="AgencyMatch" 
             className="h-10 w-auto group-hover:scale-105 transition-transform duration-300" 
           />
