@@ -5,6 +5,7 @@ import { ToastProvider } from "./contexts/ToastContext";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { Landing } from "./pages/Landing";
+import { ForAgencies } from "./pages/ForAgencies";
 import { Login } from "./pages/Login";
 import { Onboarding } from "./pages/Onboarding";
 import { Deals } from "./pages/Deals";
@@ -57,6 +58,7 @@ const App: React.FC = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Landing />} />
+            <Route path="/for-agencies" element={<ForAgencies />} />
             <Route path="/login" element={<Login />} />
             <Route
               path="/onboarding"

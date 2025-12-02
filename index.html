@@ -76,11 +76,11 @@
       @keyframes fadeIn {
         from {
           opacity: 0;
-          transform: translateY(20px);
+          transform: translateX(-30px);
         }
         to {
           opacity: 1;
-          transform: translateY(0);
+          transform: translateX(0);
         }
       }
       @keyframes slideIn {
@@ -189,6 +189,17 @@
       }
       .animate-glow {
         animation: glow 3s ease-in-out infinite;
+      }
+      @keyframes draw-line {
+        0% {
+          stroke-dashoffset: 400;
+        }
+        100% {
+          stroke-dashoffset: 0;
+        }
+      }
+      .animate-draw-line {
+        animation: draw-line 3s ease-out forwards;
       }
       @media (prefers-reduced-motion: reduce) {
         * {

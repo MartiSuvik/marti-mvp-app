@@ -27,12 +27,11 @@ export const Sidebar: React.FC = () => {
       {/* Logo Area */}
       <div className="p-6">
         <Link to="/deals" className="flex items-center group">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-primary/30 group-hover:scale-110 transition-transform duration-300">
-            <Icon name="trending_up" className="text-white text-2xl" />
-          </div>
-          <span className="ml-3 text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
-            AgencyMatch
-          </span>
+          <img 
+            src="/assets/logo.svg" 
+            alt="AgencyMatch" 
+            className="h-10 w-auto group-hover:scale-105 transition-transform duration-300" 
+          />
         </Link>
       </div>
 
