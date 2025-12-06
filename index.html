@@ -3,7 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Deals Dashboard</title>
+    <title>ScalingAD - Find Your Perfect Agency Match</title>
+    <meta name="description" content="Match with top marketing agencies based on your budget, platforms, and goals. Get matched in 60 seconds." />
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" />
+    <link rel="apple-touch-icon" href="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" />
+    
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="ScalingAD - Find Your Perfect Agency Match" />
+    <meta property="og:description" content="Match with top marketing agencies based on your budget, platforms, and goals." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" />
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -21,7 +33,7 @@
         theme: {
           extend: {
             colors: {
-              primary: "#EF2E6E",
+              primary: "#1877f2",
               "background-light": "#F8F9FA",
               "background-dark": "#121212",
             },
@@ -189,6 +201,145 @@
       }
       .animate-glow {
         animation: glow 3s ease-in-out infinite;
+      }
+      /* Glowing Profile Card Styles */
+      @keyframes moveDot {
+        0% {
+          top: 10%;
+          right: 10%;
+        }
+        /* Top right corner - curve */
+        10% {
+          top: 8%;
+          right: 25%;
+        }
+        /* Moving along top */
+        20% {
+          top: 10%;
+          right: calc(100% - 50px);
+        }
+        /* Top left corner - curve */
+        25% {
+          top: 15%;
+          right: calc(100% - 30px);
+        }
+        /* Moving down left side */
+        35% {
+          top: 50%;
+          right: calc(100% - 35px);
+        }
+        /* Bottom left corner - curve */
+        45% {
+          top: calc(100% - 40px);
+          right: calc(100% - 30px);
+        }
+        50% {
+          top: calc(100% - 30px);
+          right: calc(100% - 50px);
+        }
+        /* Moving along bottom */
+        60% {
+          top: calc(100% - 28px);
+          right: 50%;
+        }
+        /* Bottom right corner - curve */
+        70% {
+          top: calc(100% - 30px);
+          right: 25%;
+        }
+        75% {
+          top: calc(100% - 40px);
+          right: 12%;
+        }
+        /* Moving up right side */
+        85% {
+          top: 50%;
+          right: 10%;
+        }
+        /* Back to top right corner - curve */
+        95% {
+          top: 15%;
+          right: 10%;
+        }
+        100% {
+          top: 10%;
+          right: 10%;
+        }
+      }
+      .profile-card-outer {
+        width: 100%;
+        max-width: 400px;
+        height: 280px;
+        border-radius: 20px;
+        padding: 1px;
+        position: relative;
+        background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), #EF2E6E, transparent 40%);
+        transition: background 0.3s;
+      }
+      .profile-card-outer:hover {
+        background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), #EF2E6E, transparent 60%);
+      }
+      .profile-card-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #EF2E6E;
+        border-radius: 50%;
+        position: absolute;
+        top: 10%;
+        right: 10%;
+        animation: moveDot 8s ease-in-out infinite;
+        box-shadow: 0 0 20px 10px rgba(239, 46, 110, 0.4);
+        z-index: 10;
+      }
+      .profile-card-inner {
+        width: 100%;
+        height: 100%;
+        border-radius: 19px;
+        padding: 24px;
+        background: linear-gradient(135deg, rgba(30, 30, 40, 0.95), rgba(20, 20, 30, 0.98));
+        position: relative;
+        overflow: hidden;
+      }
+      .profile-card-ray {
+        width: 200%;
+        height: 200%;
+        position: absolute;
+        background: linear-gradient(180deg, rgba(239, 46, 110, 0) 0%, rgba(239, 46, 110, 0.15) 50%, rgba(239, 46, 110, 0) 100%);
+        top: -50%;
+        left: -50%;
+        animation: rotate 4s linear infinite;
+        opacity: 0;
+        transition: opacity 0.3s;
+      }
+      .profile-card-outer:hover .profile-card-ray {
+        opacity: 1;
+      }
+      @keyframes rotate {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      .profile-card-line {
+        position: absolute;
+        background: linear-gradient(90deg, transparent, #EF2E6E, transparent);
+        transition: opacity 0.3s;
+        opacity: 0.3;
+      }
+      .profile-card-outer:hover .profile-card-line {
+        opacity: 0.6;
+      }
+      .profile-card-line.topl {
+        top: 0; left: 10%; right: 10%; height: 1px;
+      }
+      .profile-card-line.bottoml {
+        bottom: 0; left: 10%; right: 10%; height: 1px;
+      }
+      .profile-card-line.leftl {
+        left: 0; top: 10%; bottom: 10%; width: 1px;
+        background: linear-gradient(180deg, transparent, #EF2E6E, transparent);
+      }
+      .profile-card-line.rightl {
+        right: 0; top: 10%; bottom: 10%; width: 1px;
+        background: linear-gradient(180deg, transparent, #EF2E6E, transparent);
       }
       @keyframes draw-line {
         0% {

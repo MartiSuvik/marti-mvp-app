@@ -59,7 +59,7 @@ export const ForAgencies: React.FC = () => {
           </h1>
           
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/onboarding")}
             className="inline-flex items-center px-6 py-3 text-base font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200"
           >
             Join as Agency
@@ -186,7 +186,7 @@ export const ForAgencies: React.FC = () => {
                 ))}
               </ul>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/onboarding")}
                 className="w-full px-6 py-3 text-base font-semibold text-indigo-600 bg-white hover:bg-gray-100 rounded-full transition-colors duration-200"
               >
                 Apply to Join
@@ -203,7 +203,7 @@ export const ForAgencies: React.FC = () => {
             Ready to grow? 🚀
           </h2>
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/onboarding")}
             className="px-8 py-3 text-base font-semibold text-indigo-600 bg-white hover:bg-gray-100 rounded-full shadow-lg transition-colors duration-200"
           >
             Get Started Free

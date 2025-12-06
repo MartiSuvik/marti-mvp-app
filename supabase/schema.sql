@@ -61,36 +61,34 @@ ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE agencies ENABLE ROW LEVEL SECURITY;
 ALTER TABLE deals ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for user_profiles
-CREATE POLICY "Users can view their own profile"
-  ON user_profiles FOR SELECT
-  USING (auth.uid() = user_id);
+-- Drop existing policies first (to avoid conflicts)
+DROP POLICY IF EXISTS "Users can view their own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can insert their own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Users can update their own profile" ON user_profiles;
+DROP POLICY IF EXISTS "Anyone can view verified agencies" ON agencies;
+DROP POLICY IF EXISTS "Users can view their own deals" ON deals;
+DROP POLICY IF EXISTS "Users can insert their own deals" ON deals;
+DROP POLICY IF EXISTS "Users can update their own deals" ON deals;
 
-CREATE POLICY "Users can insert their own profile"
-  ON user_profiles FOR INSERT
+-- RLS Policies for user_profiles
+-- Using a single policy for all operations is more efficient
+CREATE POLICY "Users full access to own profile"
+  ON user_profiles
+  FOR ALL
+  USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own profile"
-  ON user_profiles FOR UPDATE
-  USING (auth.uid() = user_id);
-
--- RLS Policies for agencies (public read, admin write)
+-- RLS Policies for agencies (public read for verified agencies)
 CREATE POLICY "Anyone can view verified agencies"
   ON agencies FOR SELECT
   USING (verified = true);
 
--- RLS Policies for deals
-CREATE POLICY "Users can view their own deals"
-  ON deals FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own deals"
-  ON deals FOR INSERT
+-- RLS Policies for deals - simplified
+CREATE POLICY "Users full access to own deals"
+  ON deals
+  FOR ALL
+  USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own deals"
-  ON deals FOR UPDATE
-  USING (auth.uid() = user_id);
 
 -- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -100,6 +98,11 @@ BEGIN
   RETURN NEW;
 END;
 $$ language 'plpgsql';
+
+-- Drop existing triggers first
+DROP TRIGGER IF EXISTS update_user_profiles_updated_at ON user_profiles;
+DROP TRIGGER IF EXISTS update_agencies_updated_at ON agencies;
+DROP TRIGGER IF EXISTS update_deals_updated_at ON deals;
 
 -- Triggers to auto-update updated_at
 CREATE TRIGGER update_user_profiles_updated_at

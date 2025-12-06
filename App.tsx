@@ -60,14 +60,8 @@ const App: React.FC = () => {
             <Route path="/" element={<Landing />} />
             <Route path="/for-agencies" element={<ForAgencies />} />
             <Route path="/login" element={<Login />} />
-            <Route
-              path="/onboarding"
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/signup" element={<Login initialMode="signup" />} />
             <Route
               path="/deals"
               element={

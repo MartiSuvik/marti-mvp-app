@@ -115,7 +115,7 @@ export const Landing: React.FC = () => {
           
           {/* Single CTA button */}
           <button
-            onClick={() => navigate("/login")}
+            onClick={() => navigate("/onboarding")}
             className="inline-flex items-center px-6 py-3 text-base font-semibold text-white bg-primary hover:bg-primary/90 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200"
           >
             Get Started Free
@@ -238,7 +238,7 @@ export const Landing: React.FC = () => {
                 Answer 5 strategic questions.
               </p>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/onboarding")}
                 className="inline-flex items-center px-5 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-full transition-colors duration-200"
               >
                 Get Started Free
@@ -310,7 +310,7 @@ export const Landing: React.FC = () => {
                 Get recommendations with match scores and capabilities.
               </p>
               <button
-                onClick={() => navigate("/login")}
+                onClick={() => navigate("/onboarding")}
                 className="inline-flex items-center px-5 py-2.5 text-sm font-semibold text-white bg-primary hover:bg-primary/90 rounded-full transition-colors duration-200"
               >
                 Try for Free
@@ -489,7 +489,7 @@ export const Landing: React.FC = () => {
               <div className="text-white/80 text-sm">Agencies</div>
             </div>
             <button
-              onClick={() => navigate("/login")}
+              onClick={() => navigate("/onboarding")}
               className="px-8 py-3 text-base font-semibold text-primary bg-white hover:bg-gray-100 rounded-full shadow-lg transition-colors duration-200"
             >
               Try for Free
