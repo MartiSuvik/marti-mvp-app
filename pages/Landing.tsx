@@ -193,30 +193,30 @@ export const Landing: React.FC = () => {
             </div>
           </div>
 
-          {/* Video Demo Section */}
+          {/* Video Demo Section 
           <div className="mt-10 max-w-4xl mx-auto">
             <div className="relative aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-2xl group cursor-pointer">
-              {/* Video Placeholder */}
+              {/* Video Placeholder
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-purple-600/10 to-blue-600/20"></div>
               
-              {/* Play Button */}
+               Play Button
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center group-hover:scale-110 group-hover:bg-white/30 transition-all duration-300">
                   <Icon name="play_arrow" className="text-white text-5xl ml-1" />
                 </div>
               </div>
               
-              {/* Logo Watermark */}
+              Logo Watermark
               <div className="absolute bottom-4 left-4">
                 <img src="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" alt="AgencyMatch" className="h-8" />
               </div>
               
-              {/* Video element placeholder - replace src with actual video */}
-              {/* <video className="w-full h-full object-cover" poster="/assets/video-poster.jpg">
+              Video element placeholder - replace src with actual video
+              <video className="w-full h-full object-cover" poster="/assets/video-poster.jpg">
                 <source src="/assets/demo-video.mp4" type="video/mp4" />
-              </video> */}
+              </video>
             </div>
-          </div>
+          </div>*/}
         </div>
       </section>
 

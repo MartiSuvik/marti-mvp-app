@@ -11,6 +11,7 @@ import { MultiSelect } from "../components/ui/MultiSelect";
 import { Card } from "../components/ui/Card";
 import { Input } from "../components/ui/Input";
 import { Icon } from "../components/Icon";
+import { FEATURES, isWhitelistedEmail } from "../config/features";
 
 const PLATFORMS = [
   { value: "FB/IG", label: "Facebook/Instagram" },
@@ -221,8 +222,14 @@ export const Onboarding: React.FC = () => {
         }
         showToast("Please verify your email first", "error");
       } else {
-        showToast("Email verified! Loading your matches...", "success");
-        setTimeout(() => navigate("/deals"), 500);
+        // Check if in waitlist mode and user is not whitelisted
+        if (FEATURES.WAITLIST_MODE && !isWhitelistedEmail(email)) {
+          showToast("You're on the waitlist!", "success");
+          setTimeout(() => navigate("/waitlist"), 500);
+        } else {
+          showToast("Email verified! Loading your matches...", "success");
+          setTimeout(() => navigate("/deals"), 500);
+        }
       }
     } catch (err: any) {
       setRegistrationError(err.message || "An error occurred");

@@ -14,6 +14,8 @@ import { Agencies } from "./pages/Agencies";
 import { AgencyDetail } from "./pages/AgencyDetail";
 import { MyBrand } from "./pages/MyBrand";
 import { Support } from "./pages/Support";
+import { Waitlist } from "./pages/Waitlist";
+import { FEATURES, isWhitelistedEmail } from "./config/features";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -30,6 +32,11 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // If waitlist mode is enabled and user is not whitelisted, redirect to waitlist
+  if (FEATURES.WAITLIST_MODE && user.email && !isWhitelistedEmail(user.email)) {
+    return <Navigate to="/waitlist" replace />;
   }
 
   return <>{children}</>;
@@ -62,6 +69,7 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/signup" element={<Login initialMode="signup" />} />
+            <Route path="/waitlist" element={<Waitlist />} />
             <Route
               path="/deals"
               element={
