@@ -1,7 +1,7 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Icon } from "../components/Icon";
-import { Button } from "../components/ui/Button";
+import { Icon } from "../../components/Icon";
+import { Button } from "../../components/ui/Button";
 
 export const Waitlist: React.FC = () => {
   const navigate = useNavigate();

@@ -1,8 +1,8 @@
-import { OnboardingAnswers, Agency, Deal } from "../types";
+import { OnboardingAnswers, Agency } from "../types";
 
 /**
  * Matching Engine
- * Generates agency recommendations based on onboarding answers
+ * Generates agency recommendations based on new onboarding answers
  */
 export class MatchingEngine {
   /**
@@ -15,53 +15,67 @@ export class MatchingEngine {
     let score = 0;
     let maxScore = 0;
 
-    // Platform expertise alignment (30% weight)
-    maxScore += 30;
-    if (agency.platforms && answers.platforms.length > 0) {
-      const matchingPlatforms = answers.platforms.filter((p) =>
+    // Platform expertise alignment (35% weight)
+    maxScore += 35;
+    if (agency.platforms && answers.adPlatforms && answers.adPlatforms.length > 0) {
+      const matchingPlatforms = answers.adPlatforms.filter((p) =>
         agency.platforms?.includes(p)
       ).length;
-      const platformScore = (matchingPlatforms / answers.platforms.length) * 30;
+      const platformScore = (matchingPlatforms / answers.adPlatforms.length) * 35;
       score += platformScore;
     }
 
-    // Budget compatibility (25% weight)
+    // Ad spend / Budget compatibility (25% weight)
     maxScore += 25;
-    if (
-      agency.spendBrackets &&
-      agency.spendBrackets.includes(answers.spendBracket)
-    ) {
-      score += 25;
+    if (agency.spendBrackets && answers.adSpend) {
+      // Map new ad spend values to agency spend brackets
+      const spendMapping: Record<string, string[]> = {
+        "$0": ["$0", "$1k–$5k"],
+        "$1k–$5k": ["$1k–$5k", "$5k–$20k"],
+        "$5k–$20k": ["$5k–$20k", "$20k+"],
+        "$20k+": ["$20k+", "$50k+", "$100k+"],
+      };
+      const matchingBrackets = spendMapping[answers.adSpend] || [];
+      if (matchingBrackets.some(bracket => agency.spendBrackets?.includes(bracket))) {
+        score += 25;
+      }
     }
 
-    // Industry specialization (20% weight)
-    maxScore += 20;
-    if (agency.industries && agency.industries.includes(answers.industry)) {
-      score += 20;
-    }
-
-    // Objective alignment (15% weight)
+    // Revenue consistency affects readiness (15% weight)
     maxScore += 15;
-    if (agency.objectives && answers.objectives.length > 0) {
-      const matchingObjectives = answers.objectives.filter((o) =>
-        agency.objectives?.includes(o)
-      ).length;
-      const objectiveScore =
-        (matchingObjectives / answers.objectives.length) * 15;
-      score += objectiveScore;
+    if (answers.revenueConsistency) {
+      const consistencyScores: Record<string, number> = {
+        "Very stable": 15,
+        "Mostly stable": 12,
+        "Somewhat inconsistent": 8,
+        "Very inconsistent": 4,
+      };
+      score += consistencyScores[answers.revenueConsistency] || 0;
     }
 
-    // Current ops compatibility (10% weight)
+    // Ads experience affects agency fit (15% weight)
+    maxScore += 15;
+    if (answers.adsExperience) {
+      // Agencies prefer some experience but can work with beginners
+      const experienceScores: Record<string, number> = {
+        "< 3 months": 10,
+        "3–12 months": 15,
+        "12+ months": 15,
+      };
+      score += experienceScores[answers.adsExperience] || 0;
+    }
+
+    // Monthly revenue affects tier matching (10% weight)
     maxScore += 10;
-    // If user has agency and agency specializes in agency-to-agency transitions
-    if (
-      answers.currentManagement === "Agency" &&
-      agency.capabilities?.some((c) => c.toLowerCase().includes("transition"))
-    ) {
-      score += 10;
-    } else if (answers.currentManagement !== "Agency") {
-      // General compatibility
-      score += 5;
+    if (answers.monthlyRevenue) {
+      // Higher revenue = better fit for most agencies
+      const revenueScores: Record<string, number> = {
+        "$10k–$50k": 6,
+        "$50k–$100k": 8,
+        "$100k–$500k": 10,
+        "Over $500k": 10,
+      };
+      score += revenueScores[answers.monthlyRevenue] || 0;
     }
 
     // Normalize to percentage

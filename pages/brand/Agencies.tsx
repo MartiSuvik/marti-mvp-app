@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../contexts/ToastContext";
-import { supabase } from "../lib/supabase";
-import { Agency } from "../types";
-import { Card } from "../components/ui/Card";
-import { Input } from "../components/ui/Input";
-import { Select } from "../components/ui/Select";
-import { Button } from "../components/ui/Button";
-import { Icon } from "../components/Icon";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
+import { supabase } from "../../lib/supabase";
+import { Agency } from "../../types";
+import { Card } from "../../components/ui/Card";
+import { Input } from "../../components/ui/Input";
+import { Select } from "../../components/ui/Select";
+import { Button } from "../../components/ui/Button";
+import { Icon } from "../../components/Icon";
+import { AgencyLogo } from "../../components/AgencyLogo";
 
 export const Agencies: React.FC = () => {
   const { user } = useAuth();
@@ -21,22 +22,8 @@ export const Agencies: React.FC = () => {
   const [spendFilter, setSpendFilter] = useState("");
 
   const platforms = [
-    "FB/IG",
-    "Google",
-    "YouTube",
-    "TikTok",
-    "LinkedIn",
-    "Programmatic",
-  ];
-  const industries = [
-    "E-commerce",
-    "SaaS",
-    "Healthcare",
-    "Finance",
-    "Education",
-    "Real Estate",
-    "Fitness",
-    "Other",
+    "Meta",
+    "Google"
   ];
   const spendBrackets = [
     "Under $5k",
@@ -70,8 +57,20 @@ export const Agencies: React.FC = () => {
         setAgencies(mockAgencies);
         setFilteredAgencies(mockAgencies);
       } else {
-        setAgencies(data as Agency[]);
-        setFilteredAgencies(data as Agency[]);
+        // Map snake_case DB fields to camelCase TypeScript interface
+        const mappedAgencies: Agency[] = data.map((a: any) => ({
+          id: a.id,
+          name: a.name,
+          logoUrl: a.logo_url,
+          description: a.description,
+          platforms: a.platforms || [],
+          industries: a.industries || [],
+          spendBrackets: a.spend_brackets || [],
+          objectives: a.objectives || [],
+          verified: a.verified || false,
+        }));
+        setAgencies(mappedAgencies);
+        setFilteredAgencies(mappedAgencies);
       }
     } catch (error) {
       console.error("Error loading agencies:", error);
@@ -95,12 +94,6 @@ export const Agencies: React.FC = () => {
         industries: ["E-commerce", "SaaS"],
         spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
         objectives: ["Improve ROAS", "Scale spend", "Creative improvement"],
-        capabilities: [
-          "Social Media",
-          "Content",
-          "ROAS Optimization",
-          "Creative Development",
-        ],
         verified: true,
       },
       {
@@ -112,12 +105,6 @@ export const Agencies: React.FC = () => {
         industries: ["SaaS", "Finance"],
         spendBrackets: ["$20–50k", "$50–150k", "$150k+"],
         objectives: ["Scale spend", "Expand channels"],
-        capabilities: [
-          "Branding",
-          "Design",
-          "B2B Marketing",
-          "Account-Based Marketing",
-        ],
         verified: true,
       },
       {
@@ -129,12 +116,6 @@ export const Agencies: React.FC = () => {
         industries: ["E-commerce", "Healthcare"],
         spendBrackets: ["Under $5k", "$5–20k", "$20–50k"],
         objectives: ["Fix tracking", "Improve ROAS"],
-        capabilities: [
-          "UI/UX",
-          "Development",
-          "Analytics",
-          "Conversion Optimization",
-        ],
         verified: true,
       },
       {
@@ -146,7 +127,6 @@ export const Agencies: React.FC = () => {
         industries: ["E-commerce", "Fitness"],
         spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
         objectives: ["Scale spend", "Improve ROAS", "Expand channels"],
-        capabilities: ["Paid Media", "Analytics", "Creative Strategy"],
         verified: true,
       },
     ];
@@ -199,16 +179,58 @@ export const Agencies: React.FC = () => {
 
     // Create a deal for this agency
     try {
-      const { error } = await supabase.from("deals").insert({
-        user_id: user.id,
-        agency_id: agencyId,
-        match_score: 0, // Manual request
-        status: "new",
-      });
+      const { data: dealData, error } = await supabase
+        .from("deals")
+        .insert({
+          user_id: user.id,
+          agency_id: agencyId,
+          match_score: 0, // Manual request
+          status: "new",
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      showToast(`${agencyName} has been added to your Deals page!`, "success");
+      // Notify agency via Edge Function (fire and forget - don't block UI)
+      try {
+        const notifyResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/notify-agency-match`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({
+              dealId: dealData.id,
+              agencyId: agencyId,
+              businessUserId: user.id,
+            }),
+          }
+        );
+        
+        if (!notifyResponse.ok) {
+          console.warn("Agency notification may have failed:", await notifyResponse.text());
+        }
+      } catch (notifyError) {
+        // Don't fail the whole operation if notification fails
+        console.warn("Could not send agency notification:", notifyError);
+      }
+
+      // Create conversation for this deal (enables chat)
+      try {
+        await supabase.from("conversations").insert({
+          deal_id: dealData.id,
+          business_id: user.id,
+          agency_id: agencyId,
+        });
+      } catch (convError) {
+        // Don't fail if conversation creation fails
+        console.warn("Could not create conversation:", convError);
+      }
+
+      showToast(`${agencyName} has been added to your Deals page! They've been notified.`, "success");
     } catch (error) {
       console.error("Error requesting match:", error);
       showToast("Error requesting match. Please try again.", "error");
@@ -260,14 +282,6 @@ export const Agencies: React.FC = () => {
           />
           <Select
             options={[
-              { value: "", label: "All Industries" },
-              ...industries.map((i) => ({ value: i, label: i })),
-            ]}
-            value={industryFilter}
-            onChange={(e) => setIndustryFilter(e.target.value)}
-          />
-          <Select
-            options={[
               { value: "", label: "All Budgets" },
               ...spendBrackets.map((s) => ({ value: s, label: s })),
             ]}
@@ -283,17 +297,11 @@ export const Agencies: React.FC = () => {
           <Card key={agency.id} hover>
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-center gap-3">
-                {agency.logoUrl ? (
-                  <img
-                    src={agency.logoUrl}
-                    alt={agency.name}
-                    className="w-12 h-12 rounded-full"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <Icon name="business" className="text-primary text-2xl" />
-                  </div>
-                )}
+                <AgencyLogo
+                  logoUrl={agency.logoUrl}
+                  name={agency.name}
+                  size="md"
+                />
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                     {agency.name}
@@ -315,7 +323,7 @@ export const Agencies: React.FC = () => {
             {agency.platforms && agency.platforms.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Platform Expertise
+                  Expertise
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {agency.platforms.slice(0, 3).map((platform) => (
@@ -331,24 +339,6 @@ export const Agencies: React.FC = () => {
                       +{agency.platforms.length - 3}
                     </span>
                   )}
-                </div>
-              </div>
-            )}
-
-            {agency.capabilities && agency.capabilities.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Capabilities
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {agency.capabilities.slice(0, 2).map((cap) => (
-                    <span
-                      key={cap}
-                      className="text-[10px] font-medium text-primary bg-pink-50 dark:bg-pink-900/20 px-2 py-0.5 rounded"
-                    >
-                      {cap}
-                    </span>
-                  ))}
                 </div>
               </div>
             )}

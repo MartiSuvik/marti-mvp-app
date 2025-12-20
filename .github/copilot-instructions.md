@@ -98,3 +98,167 @@ Edit `lib/matchingEngine.ts` - adjust weights in `calculateMatchScore()`. Curren
 1. Add type to `types.ts` (e.g., new union type)
 2. Add options array and step UI in `pages/Onboarding.tsx`
 3. Update `user_profiles` schema in `supabase/schema.sql`
+
+---
+
+## Stripe Integration (Stripe Connect)
+
+### 🔧 Tools & Documentation
+- **ALWAYS use Stripe MCP** for any Stripe-related development (queries, docs, testing)
+- **Reference** `stripe.md` in project root for documentation links
+- **Primary Goal:** Stripe Connect for agency payouts (marketplace model)
+
+### Stripe MCP Commands
+When developing Stripe features, use these MCP tools:
+```
+mcp_stripe_search_stripe_documentation  # Search Stripe docs
+mcp_stripe_get_stripe_account_info      # Get connected account info
+mcp_stripe_create_customer              # Create customers
+mcp_stripe_create_product               # Create products
+mcp_stripe_create_price                 # Set pricing
+mcp_stripe_create_payment_link          # Generate payment links
+mcp_stripe_list_products                # List all products
+mcp_stripe_retrieve_balance             # Check account balance
+```
+
+### ScalingAD Payment Model
+- **Type:** Marketplace (Destination Charges)
+- **Platform (ScalingAD):** Merchant of Record
+- **Flow:** Buyer pays platform → Platform transfers to Agency
+- **Fees:** Platform takes application fee from each transaction
+
+### Stripe Connect Architecture
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
+│   Buyer     │────▶│  ScalingAD   │────▶│  Agency         │
+│  (Business) │     │  (Platform)  │     │  (Connected Acct)│
+└─────────────┘     └──────────────┘     └─────────────────┘
+    Pays              Holds funds         Receives payout
+                      Takes fee           via Transfer
+```
+
+### Key Connect Concepts
+1. **Destination Charges** - Payment created on platform, funds transferred to connected account
+2. **Connected Accounts** - Agencies onboard via Stripe-hosted flow (Account Links)
+3. **Transfers** - Move funds from platform to connected account
+4. **Application Fees** - Platform's cut from each transaction
+
+### Best Practices (from Stripe MCP docs)
+- ✅ Use Stripe-hosted onboarding for agencies (lowest effort, handles KYC)
+- ✅ Enable Radar for fraud prevention
+- ✅ Set up Connect webhooks for real-time notifications
+- ✅ Let Stripe handle negative balance liability (for new platforms)
+- ✅ Store all Stripe IDs in database (payment_intent_id, transfer_id, account_id)
+- ❌ Don't mix charge types (pick destination OR direct, not both)
+- ❌ Don't use outdated terms (Standard/Express/Custom) - use controller properties
+
+### Stripe Connect Documentation Links
+When implementing Connect features, reference these docs:
+
+**Getting Started:**
+- [Design your Connect integration](https://docs.stripe.com/connect/design-an-integration.md)
+- [Build a marketplace](https://docs.stripe.com/connect/marketplace.md) ← Our model
+- [Accounts v2 API](https://docs.stripe.com/connect/accounts-v2.md)
+
+**Connected Account Management:**
+- [Choose onboarding configuration](https://docs.stripe.com/connect/onboarding.md)
+- [Enable account capabilities](https://docs.stripe.com/connect/account-capabilities.md)
+- [Required verification info](https://docs.stripe.com/connect/required-verification-information.md)
+
+**Payment Processing:**
+- [Create a charge](https://docs.stripe.com/connect/charges.md)
+- [Account balances](https://docs.stripe.com/connect/account-balances.md)
+- [Payouts to connected accounts](https://docs.stripe.com/connect/payouts-connected-accounts.md)
+
+**Platform Admin:**
+- [Platform pricing tool](https://docs.stripe.com/connect/platform-pricing-tools.md)
+- [Dashboard management](https://docs.stripe.com/connect/dashboard.md)
+- [Stripe Radar with Connect](https://docs.stripe.com/connect/radar.md)
+
+**Embedded Components:**
+- [Connect embedded components](https://docs.stripe.com/connect/get-started-connect-embedded-components.md) - Add dashboard functionality to your app
+
+### Payout Options for Agencies
+| Option | Best For | Timing | Fee |
+|--------|----------|--------|-----|
+| **Next-day settlement** | Automatic liquidity | Next business day | 0.6% |
+| **Instant Payouts** | Manual, as-needed | Within 30 minutes | [Variable](https://docs.stripe.com/payouts/instant-payouts.md#pricing) |
+
+### Database Tables for Payments
+```sql
+-- Agencies with Stripe Connect
+ALTER TABLE agencies ADD COLUMN stripe_account_id TEXT;
+ALTER TABLE agencies ADD COLUMN stripe_onboarding_complete BOOLEAN DEFAULT false;
+
+-- Jobs/Projects with payment tracking
+CREATE TABLE jobs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  deal_id UUID REFERENCES deals(id),
+  buyer_id UUID REFERENCES auth.users(id),
+  agency_id UUID REFERENCES agencies(id),
+  amount DECIMAL(10,2),
+  currency TEXT DEFAULT 'USD',
+  status TEXT CHECK (status IN ('draft','unfunded','funded','in_progress','completed','paid_out','refunded')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payment tracking
+CREATE TABLE job_payments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  job_id UUID REFERENCES jobs(id),
+  stripe_payment_intent_id TEXT,
+  amount DECIMAL(10,2),
+  status TEXT CHECK (status IN ('pending','captured','refunded')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payout tracking
+CREATE TABLE job_payouts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  job_id UUID REFERENCES jobs(id),
+  stripe_transfer_id TEXT,
+  amount DECIMAL(10,2),
+  status TEXT CHECK (status IN ('pending','completed','failed')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Audit log
+CREATE TABLE ledger_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  job_id UUID REFERENCES jobs(id),
+  event_type TEXT,
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### Environment Variables for Stripe
+```
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### Webhook Events to Handle
+- `payment_intent.succeeded` - Buyer payment captured
+- `payment_intent.payment_failed` - Payment failed
+- `transfer.paid` - Agency payout completed
+- `account.updated` - Agency account status changed
+- `account.application.deauthorized` - Agency disconnected
+
+### File Structure for Payments
+```
+lib/
+├── payments/
+│   ├── stripeClient.ts           # Stripe SDK init (server-side only)
+│   ├── connectService.ts         # Agency onboarding, account management
+│   ├── paymentService.ts         # PaymentIntents, captures, refunds
+│   └── webhookHandler.ts         # Process Stripe events
+
+supabase/
+├── functions/
+│   ├── stripe-webhook/           # Edge function for webhooks
+│   ├── create-payment-intent/    # Buyer funds job
+│   ├── create-connect-account/   # Agency onboarding link
+│   └── transfer-to-agency/       # Release funds to agency
+```

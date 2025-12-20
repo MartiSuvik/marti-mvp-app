@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../contexts/ToastContext";
-import { supabase } from "../lib/supabase";
-import { Agency } from "../types";
-import { Card } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
-import { Icon } from "../components/Icon";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
+import { supabase } from "../../lib/supabase";
+import { Agency } from "../../types";
+import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
+import { Icon } from "../../components/Icon";
+import { AgencyLogo } from "../../components/AgencyLogo";
 
 export const AgencyDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -42,7 +43,6 @@ export const AgencyDetail: React.FC = () => {
           industries: data.industries || [],
           spendBrackets: data.spend_brackets || [],
           objectives: data.objectives || [],
-          capabilities: data.capabilities || [],
           verified: data.verified || false,
         });
       }
@@ -61,8 +61,22 @@ export const AgencyDetail: React.FC = () => {
 
     if (!id) return;
 
+    // Check if deal already exists
+    const { data: existingDeal } = await supabase
+      .from("deals")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("agency_id", id)
+      .maybeSingle();
+
+    if (existingDeal) {
+      showToast(`${agency?.name} is already in your matches!`, "error");
+      navigate("/deals");
+      return;
+    }
+
     const confirmed = window.confirm(
-      `Request a match with ${agency?.name}? This will add them to your Deals page.`
+      `Request a match with ${agency?.name}? This will add them to your Matches page.`
     );
 
     if (!confirmed) return;
@@ -78,7 +92,7 @@ export const AgencyDetail: React.FC = () => {
       if (error) throw error;
 
       showToast(
-        `${agency?.name} has been added to your Deals page!`,
+        `${agency?.name} has been added to your Matches!`,
         "success"
       );
       navigate("/deals");
@@ -132,17 +146,11 @@ export const AgencyDetail: React.FC = () => {
       <Card>
         <div className="flex flex-col md:flex-row gap-8">
           <div className="flex-shrink-0">
-            {agency.logoUrl ? (
-              <img
-                src={agency.logoUrl}
-                alt={agency.name}
-                className="w-24 h-24 rounded-full"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center">
-                <Icon name="business" className="text-primary text-4xl" />
-              </div>
-            )}
+            <AgencyLogo
+              logoUrl={agency.logoUrl}
+              name={agency.name}
+              size="xl"
+            />
           </div>
           <div className="flex-1">
             <div className="flex items-start justify-between mb-4">
@@ -214,24 +222,6 @@ export const AgencyDetail: React.FC = () => {
                         className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm font-medium"
                       >
                         {bracket}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {agency.capabilities && agency.capabilities.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">
-                    Capabilities
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {agency.capabilities.map((cap) => (
-                      <span
-                        key={cap}
-                        className="px-3 py-1 bg-primary/10 text-primary rounded-lg text-sm font-medium"
-                      >
-                        {cap}
                       </span>
                     ))}
                   </div>

@@ -2,38 +2,53 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "./Icon";
 import { NavItem } from "../types";
+import { useAuth } from "../contexts/AuthContext";
 
 const mainNavItems: NavItem[] = [
-  { label: "Matches", icon: "handshake", href: "/deals" },
-  { label: "Proposals", icon: "description", href: "/proposals" },
-  { label: "Jobs", icon: "work", href: "/jobs" },
-  { label: "Agencies", icon: "people", href: "/agencies" },
+  { label: "Dashboard", icon: "dashboard", href: "/agency" },
+  { label: "Matches", icon: "handshake", href: "/agency/deals" },
+  { label: "Proposals", icon: "description", href: "/agency/proposals" },
+  { label: "Projects", icon: "work", href: "/agency/jobs" },
 ];
 
 const accountNavItems: NavItem[] = [
-  { label: "My Brand", icon: "account_circle", href: "/my-brand" },
-  { label: "Support & Guides", icon: "description", href: "/support" },
+  { label: "Payouts", icon: "payments", href: "/agency/payouts" },
+  { label: "My Agency", icon: "business", href: "/agency/profile" },
+  { label: "Support", icon: "help_outline", href: "/agency/support" },
 ];
 
-export const Sidebar: React.FC = () => {
+export const AgencySidebar: React.FC = () => {
   const location = useLocation();
+  const { agency } = useAuth();
 
   const isActive = (href?: string) => {
     if (!href) return false;
-    return location.pathname === href;
+    if (href === "/agency") {
+      return location.pathname === "/agency";
+    }
+    return location.pathname.startsWith(href);
   };
 
   return (
     <aside className="w-64 flex-shrink-0 glass border-r border-gray-200/50 dark:border-gray-800/50 flex flex-col h-full overflow-hidden transition-all duration-300">
       {/* Logo Area */}
       <div className="p-6">
-        <Link to="/deals" className="flex items-center group">
+        <Link to="/agency" className="flex items-center group">
           <img 
             src="https://res.cloudinary.com/effichat/image/upload/v1764713504/mywc0fu8gvdtxlwf02dh.svg" 
-            alt="AgencyMatch" 
+            alt="ScalingAD" 
             className="h-10 w-auto group-hover:scale-105 transition-transform duration-300" 
           />
         </Link>
+        {/* Agency Badge */}
+        <div className="mt-3 px-3 py-1.5 bg-gradient-to-r from-primary/10 to-pink-500/10 rounded-lg">
+          <p className="text-xs font-medium text-primary">Agency Portal</p>
+          {agency && (
+            <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+              {agency.name}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
@@ -99,10 +114,21 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Support Section */}
-      <div className="p-6 mt-auto border-t border-gray-200/50 dark:border-gray-800/50">
-        <div className="flex flex-col items-center text-center">
-          <button className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-primary to-pink-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
-            Book a Call with Us
+      <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
+        <div className="text-center mb-4">
+          <div className="relative inline-block">
+            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/30 bg-gradient-to-br from-primary/20 to-pink-500/20 flex items-center justify-center">
+              <Icon name="support_agent" className="text-2xl text-primary" />
+            </div>
+            <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
+          </div>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2">
+            We're here to help
+          </p>
+        </div>
+        <div className="space-y-2">
+          <button className="w-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-primary to-pink-600 rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-primary/20">
+            Book a Call
           </button>
         </div>
       </div>

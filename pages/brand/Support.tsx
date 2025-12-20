@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { useToast } from "../contexts/ToastContext";
-import { Card } from "../components/ui/Card";
-import { Input } from "../components/ui/Input";
-import { Button } from "../components/ui/Button";
-import { Icon } from "../components/Icon";
+import { useToast } from "../../contexts/ToastContext";
+import { Card } from "../../components/ui/Card";
+import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/Button";
+import { Icon } from "../../components/Icon";
 
 const faqs = [
   {

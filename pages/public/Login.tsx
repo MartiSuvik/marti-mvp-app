@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
-import { useToast } from "../contexts/ToastContext";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { Icon } from "../components/Icon";
+import { useAuth } from "../../contexts/AuthContext";
+import { useToast } from "../../contexts/ToastContext";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { Icon } from "../../components/Icon";
 
 interface LoginProps {
   initialMode?: "login" | "signup";
@@ -17,13 +17,23 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const [formLoading, setFormLoading] = useState(false);
+  const { signIn, signUp, profile, user, loading: authLoading, authState } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
   // Check if coming from onboarding
   const hasOnboardingData = localStorage.getItem("onboardingAnswers") !== null;
+  
+  // Redirect based on user type when authenticated
+  useEffect(() => {
+    // Only redirect when auth is fully loaded AND we have both user and profile
+    if (authState === "authenticated" && user && profile) {
+      const destination = profile.userType === "agency" ? "/agency" : "/deals";
+      console.log("[Login] Redirecting to:", destination);
+      navigate(destination, { replace: true });
+    }
+  }, [authState, user, profile, navigate]);
   
   useEffect(() => {
     // If coming from onboarding, default to signup mode
@@ -35,14 +45,14 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setLoading(true);
+    setFormLoading(true);
 
     try {
       if (isSignUp) {
         if (!name.trim()) {
           setError("Name is required");
           showToast("Name is required", "error");
-          setLoading(false);
+          setFormLoading(false);
           return;
         }
         const { error } = await signUp(email, password, name);
@@ -53,9 +63,7 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
           // Check if we have onboarding data to process
           if (hasOnboardingData) {
             showToast("Account created! Generating your matches...", "success");
-            // The onboarding data will be processed after auth state updates
-            // Navigate to a processing page or directly to deals
-            setTimeout(() => navigate("/deals"), 500);
+            // New signups from onboarding are always businesses - useEffect will redirect
           } else {
             showToast("Account created successfully!", "success");
             setTimeout(() => navigate("/onboarding"), 500);
@@ -68,7 +76,7 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
           showToast(error.message, "error");
         } else {
           showToast("Welcome back!", "success");
-          setTimeout(() => navigate("/deals"), 500);
+          // Don't navigate here - useEffect will redirect once profile loads
         }
       }
     } catch (err: any) {
@@ -76,7 +84,7 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
       setError(errorMessage);
       showToast(errorMessage, "error");
     } finally {
-      setLoading(false);
+      setFormLoading(false);
     }
   };
 
@@ -154,9 +162,9 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
               variant="primary"
               size="lg"
               className="w-full"
-              loading={loading}
+              loading={formLoading || authLoading}
             >
-              {isSignUp ? "Create Account" : "Sign In"}
+              {formLoading || authLoading ? "Please wait..." : isSignUp ? "Create Account" : "Sign In"}
             </Button>
           </form>
 

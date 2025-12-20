@@ -3,7 +3,7 @@
 
 export const FEATURES = {
   // When true, users are redirected to waitlist after registration instead of the app
-  WAITLIST_MODE: true,
+  WAITLIST_MODE: false,
 
   // Email domains that bypass waitlist mode and get full app access
   // Users with these email domains can access the app even in waitlist mode

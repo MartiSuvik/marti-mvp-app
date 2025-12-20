@@ -9,4 +9,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    // Persist session in localStorage
+    persistSession: true,
+    // Auto-refresh token before it expires
+    autoRefreshToken: true,
+    // Detect session from URL (for OAuth redirects)
+    detectSessionInUrl: true,
+    // Storage key for session
+    storageKey: 'scalingad-auth',
+  },
+  // Global fetch timeout to prevent hanging
+  global: {
+    fetch: (url, options = {}) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
+      return fetch(url, {
+        ...options,
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
+    },
+  },
+});

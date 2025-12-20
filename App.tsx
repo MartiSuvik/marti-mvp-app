@@ -4,17 +4,38 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ToastProvider } from "./contexts/ToastContext";
 import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
-import { Landing } from "./pages/Landing";
-import { ForAgencies } from "./pages/ForAgencies";
-import { Login } from "./pages/Login";
-import { Onboarding } from "./pages/Onboarding";
-import { Deals } from "./pages/Deals";
-import { Ongoing } from "./pages/Ongoing";
-import { Agencies } from "./pages/Agencies";
-import { AgencyDetail } from "./pages/AgencyDetail";
-import { MyBrand } from "./pages/MyBrand";
-import { Support } from "./pages/Support";
-import { Waitlist } from "./pages/Waitlist";
+import { AgencySidebar } from "./components/AgencySidebar";
+import { AgencyDashboardLayout } from "./components/AgencyDashboardLayout";
+
+// Public pages
+import { Landing } from "./pages/public/Landing";
+import { ForAgencies } from "./pages/public/ForAgencies";
+import { Login } from "./pages/public/Login";
+import { Onboarding } from "./pages/public/Onboarding";
+import { Waitlist } from "./pages/public/Waitlist";
+
+// Brand pages
+import { Matches as BrandMatches } from "./pages/brand/Matches";
+import { Proposals as BrandProposals } from "./pages/brand/Proposals";
+import { Jobs } from "./pages/brand/Jobs";
+import { JobDetail } from "./pages/brand/JobDetail";
+import { CreateJob } from "./pages/brand/CreateJob";
+import { Agencies } from "./pages/brand/Agencies";
+import { AgencyDetail } from "./pages/brand/AgencyDetail";
+import { Profile as BrandProfile } from "./pages/brand/Profile";
+import { Support } from "./pages/brand/Support";
+
+// Agency pages
+import { Dashboard as AgencyDashboard } from "./pages/agency/Dashboard";
+import { Matches as AgencyMatches } from "./pages/agency/Matches";
+import { Proposals as AgencyProposals } from "./pages/agency/Proposals";
+import { Projects as AgencyProjects } from "./pages/agency/Projects";
+import { ProjectDetail as AgencyProjectDetail } from "./pages/agency/ProjectDetail";
+import { Profile as AgencyProfile } from "./pages/agency/Profile";
+
+// Shared pages
+import { StripeOnboarding } from "./pages/shared/StripeOnboarding";
+
 import { FEATURES, isWhitelistedEmail } from "./config/features";
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
@@ -37,6 +58,63 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
   // If waitlist mode is enabled and user is not whitelisted, redirect to waitlist
   if (FEATURES.WAITLIST_MODE && user.email && !isWhitelistedEmail(user.email)) {
     return <Navigate to="/waitlist" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Protected route that requires agency user type
+const AgencyProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { user, loading, isAgencyUser } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If not an agency user, redirect to business dashboard
+  if (!isAgencyUser) {
+    return <Navigate to="/deals" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+// Protected route that requires business (brand) user type
+const BrandProtectedRoute: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const { user, loading, isAgencyUser } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-gray-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If waitlist mode is enabled and user is not whitelisted, redirect to waitlist
+  if (FEATURES.WAITLIST_MODE && user.email && !isWhitelistedEmail(user.email)) {
+    return <Navigate to="/waitlist" replace />;
+  }
+
+  // If agency user tries to access brand routes, redirect to agency dashboard
+  if (isAgencyUser) {
+    return <Navigate to="/agency" replace />;
   }
 
   return <>{children}</>;
@@ -73,63 +151,186 @@ const App: React.FC = () => {
             <Route
               path="/deals"
               element={
-                <ProtectedRoute>
+                <BrandProtectedRoute>
                   <DashboardLayout>
-                    <Deals />
+                    <BrandMatches />
                   </DashboardLayout>
-                </ProtectedRoute>
+                </BrandProtectedRoute>
               }
             />
             <Route
-              path="/ongoing"
+              path="/proposals"
               element={
-                <ProtectedRoute>
+                <BrandProtectedRoute>
                   <DashboardLayout>
-                    <Ongoing />
+                    <BrandProposals />
                   </DashboardLayout>
-                </ProtectedRoute>
+                </BrandProtectedRoute>
               }
             />
             <Route
               path="/agencies"
               element={
-                <ProtectedRoute>
+                <BrandProtectedRoute>
                   <DashboardLayout>
                     <Agencies />
                   </DashboardLayout>
-                </ProtectedRoute>
+                </BrandProtectedRoute>
               }
             />
             <Route
               path="/agencies/:id"
               element={
-                <ProtectedRoute>
+                <BrandProtectedRoute>
                   <DashboardLayout>
                     <AgencyDetail />
                   </DashboardLayout>
-                </ProtectedRoute>
+                </BrandProtectedRoute>
               }
             />
             <Route
               path="/my-brand"
               element={
-                <ProtectedRoute>
+                <BrandProtectedRoute>
                   <DashboardLayout>
-                    <MyBrand />
+                    <BrandProfile />
                   </DashboardLayout>
-                </ProtectedRoute>
+                </BrandProtectedRoute>
               }
             />
             <Route
               path="/support"
               element={
-                <ProtectedRoute>
+                <BrandProtectedRoute>
                   <DashboardLayout>
                     <Support />
                   </DashboardLayout>
-                </ProtectedRoute>
+                </BrandProtectedRoute>
               }
             />
+            <Route
+              path="/jobs"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <Jobs />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            <Route
+              path="/jobs/create"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <CreateJob />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            <Route
+              path="/jobs/:id"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <JobDetail />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            <Route
+              path="/stripe-onboarding"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <StripeOnboarding />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            
+            {/* Agency Portal Routes */}
+            <Route
+              path="/agency"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyDashboard />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/deals"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyMatches />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/proposals"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyProposals />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/jobs"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyProjects />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/jobs/:id"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyProjectDetail />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/payouts"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <StripeOnboarding />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/profile"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyProfile />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/support"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <Support />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
