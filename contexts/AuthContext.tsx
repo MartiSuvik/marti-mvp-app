@@ -19,7 +19,7 @@ interface AuthContextType {
   loading: boolean;        // True during initializing or loading_profile
   isAgencyUser: boolean;
   authState: AuthState;    // Expose state for debugging
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, name: string, onboardingAnswers?: OnboardingAnswers) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
@@ -145,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Profile Creation (for new users)
   // ============================================
 
-  const createProfileIfNeeded = useCallback(async (userId: string): Promise<void> => {
+  const createProfileIfNeeded = useCallback(async (userId: string, userMetadata?: Record<string, any>): Promise<void> => {
     try {
       // Check if profile exists
       const { data: existing } = await supabase
@@ -156,13 +156,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (existing) return;
 
-      // Get onboarding data from localStorage
+      // Get onboarding data from user metadata first (survives email verification redirect),
+      // then fallback to localStorage (for same-tab scenarios)
       let onboardingData: OnboardingAnswers | null = null;
-      try {
-        const stored = localStorage.getItem("onboardingAnswers");
-        if (stored) onboardingData = JSON.parse(stored);
-      } catch (e) {
-        console.error("[Auth] Error parsing onboarding data:", e);
+      
+      // Try user metadata first (passed during signUp, stored in Supabase Auth)
+      if (userMetadata?.onboardingAnswers) {
+        onboardingData = userMetadata.onboardingAnswers as OnboardingAnswers;
+        console.log("[Auth] Using onboarding data from user metadata");
+      }
+      
+      // Fallback to localStorage
+      if (!onboardingData) {
+        try {
+          const stored = localStorage.getItem("onboardingAnswers");
+          if (stored) {
+            onboardingData = JSON.parse(stored);
+            console.log("[Auth] Using onboarding data from localStorage");
+          }
+        } catch (e) {
+          console.error("[Auth] Error parsing onboarding data:", e);
+        }
       }
 
       // Create profile
@@ -281,7 +295,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       // No profile - might be a new user, try to create one
       console.log("[Auth] No profile, attempting to create...");
-      await createProfileIfNeeded(newUser.id);
+      // Pass user_metadata which contains onboardingAnswers from signUp
+      await createProfileIfNeeded(newUser.id, newUser.user_metadata);
       
       // Try loading again
       const retryProfile = await loadProfile(newUser.id);
@@ -363,11 +378,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Auth Actions
   // ============================================
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, onboardingAnswers?: OnboardingAnswers) => {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name } },
+      options: { 
+        data: { 
+          name,
+          // Store onboarding answers in user metadata so they survive email verification redirect
+          onboardingAnswers: onboardingAnswers || null,
+        } 
+      },
     });
     return { error };
   };
@@ -504,7 +525,7 @@ function getMockAgencies(): Agency[] {
     {
       id: "1",
       name: "Elevate Digital",
-      platforms: ["FB/IG", "Google", "TikTok"],
+      platforms: ["FB/IG", "Google"],
       industries: ["E-commerce", "SaaS"],
       spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
       objectives: ["Improve ROAS", "Scale spend", "Creative improvement"],

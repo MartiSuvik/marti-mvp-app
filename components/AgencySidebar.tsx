@@ -3,10 +3,12 @@ import { Link, useLocation } from "react-router-dom";
 import { Icon } from "./Icon";
 import { NavItem } from "../types";
 import { useAuth } from "../contexts/AuthContext";
+import { useUnreadCount } from "../hooks/useUnreadCount";
 
 const mainNavItems: NavItem[] = [
   { label: "Dashboard", icon: "dashboard", href: "/agency" },
   { label: "Matches", icon: "handshake", href: "/agency/deals" },
+  { label: "Messages", icon: "chat", href: "/agency/messages" },
   { label: "Proposals", icon: "description", href: "/agency/proposals" },
   { label: "Projects", icon: "work", href: "/agency/jobs" },
 ];
@@ -20,6 +22,7 @@ const accountNavItems: NavItem[] = [
 export const AgencySidebar: React.FC = () => {
   const location = useLocation();
   const { agency } = useAuth();
+  const { unreadCount } = useUnreadCount();
 
   const isActive = (href?: string) => {
     if (!href) return false;
@@ -56,6 +59,7 @@ export const AgencySidebar: React.FC = () => {
         <div className="mb-6">
           {mainNavItems.map((item) => {
             const active = isActive(item.href);
+            const showBadge = item.label === "Messages" && unreadCount > 0;
             return (
               <Link
                 key={item.label}
@@ -75,7 +79,12 @@ export const AgencySidebar: React.FC = () => {
                   }`}
                 />
                 {item.label}
-                {item.badge && (
+                {showBadge && (
+                  <span className="ml-auto text-xs font-bold text-white bg-gradient-to-r from-primary to-pink-600 px-2 py-0.5 rounded-full shadow-lg min-w-[20px] text-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+                {item.badge && !showBadge && (
                   <span className="ml-auto text-xs font-bold text-white bg-gradient-to-r from-primary to-pink-600 px-2 py-1 rounded-full shadow-lg">
                     {item.badge}
                   </span>

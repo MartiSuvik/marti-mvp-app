@@ -90,7 +90,7 @@ export const Agencies: React.FC = () => {
         name: "Elevate Digital",
         description:
           "Full-service digital marketing agency specializing in e-commerce and SaaS growth.",
-        platforms: ["FB/IG", "Google", "TikTok"],
+        platforms: ["FB/IG", "Google"],
         industries: ["E-commerce", "SaaS"],
         spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
         objectives: ["Improve ROAS", "Scale spend", "Creative improvement"],
@@ -123,7 +123,7 @@ export const Agencies: React.FC = () => {
         name: "Growth Catalyst",
         description:
           "Data-driven agency helping brands scale through strategic paid media.",
-        platforms: ["FB/IG", "Google", "TikTok", "LinkedIn"],
+        platforms: ["FB/IG", "Google"],
         industries: ["E-commerce", "Fitness"],
         spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
         objectives: ["Scale spend", "Improve ROAS", "Expand channels"],
@@ -349,7 +349,7 @@ export const Agencies: React.FC = () => {
               className="w-full"
               onClick={() => handleRequestMatch(agency.id, agency.name)}
             >
-              Request Match
+              Hire
             </Button>
           </Card>
         ))}

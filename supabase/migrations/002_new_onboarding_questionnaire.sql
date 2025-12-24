@@ -40,7 +40,7 @@ ALTER TABLE user_profiles ADD COLUMN IF NOT EXISTS team_member TEXT;
 
 -- Update agencies table to have compatible platform names
 UPDATE agencies 
-SET platforms = ARRAY['Meta', 'Google', 'TikTok']
+SET platforms = ARRAY['Meta', 'Google']
 WHERE 'FB/IG' = ANY(platforms);
 
 -- Add spend bracket mappings for agencies

@@ -235,7 +235,7 @@ export const AgencyDetail: React.FC = () => {
               onClick={handleRequestMatch}
               className="w-full md:w-auto"
             >
-              Request Match
+              Hire
             </Button>
           </div>
         </div>

@@ -9,7 +9,6 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { ConfirmModal } from "../../components/ui/ConfirmModal";
 import { AgencyLogo } from "../../components/AgencyLogo";
-import { ChatDrawer } from "../../components/chat";
 import { MatchingEngine } from "../../lib/matchingEngine";
 
 export const Matches: React.FC = () => {
@@ -19,22 +18,72 @@ export const Matches: React.FC = () => {
   const [deals, setDeals] = useState<Array<Deal & { agency?: Agency }>>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [selectedDeal, setSelectedDeal] = useState<(Deal & { agency?: Agency }) | null>(null);
+  const [hiringDealId, setHiringDealId] = useState<string | null>(null);
   
   // Modal states
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [dealToRemove, setDealToRemove] = useState<{ id: string; name: string } | null>(null);
 
-  const handleOpenChat = (deal: Deal & { agency?: Agency }) => {
-    setSelectedDeal(deal);
-    setChatOpen(true);
-  };
+  const handleHire = async (deal: Deal & { agency?: Agency }) => {
+    if (!user || !deal.agency) return;
+    
+    setHiringDealId(deal.id);
+    
+    try {
+      // Check if conversation already exists
+      const { data: existingConv } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("deal_id", deal.id)
+        .single();
 
-  const handleCloseChat = () => {
-    setChatOpen(false);
-    setSelectedDeal(null);
+      let conversationId: string;
+
+      if (existingConv) {
+        conversationId = existingConv.id;
+      } else {
+        // Create new conversation
+        const { data: newConv, error: createError } = await supabase
+          .from("conversations")
+          .insert({
+            deal_id: deal.id,
+            business_id: user.id,
+            agency_id: deal.agency.id,
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        conversationId = newConv.id;
+
+        // Update deal status to active
+        await supabase
+          .from("deals")
+          .update({ status: "active", updated_at: new Date().toISOString() })
+          .eq("id", deal.id);
+
+        // Send notification email to agency (non-blocking)
+        supabase.functions.invoke("notify-agency-hire", {
+          body: {
+            dealId: deal.id,
+            agencyId: deal.agency.id,
+            businessUserId: user.id,
+            conversationId,
+          },
+        }).catch(err => console.error("Failed to send hire notification:", err));
+
+        showToast(`Started conversation with ${deal.agency.name}!`, "success");
+      }
+
+      // Navigate to the conversation
+      navigate(`/messages/${conversationId}`);
+    } catch (error: any) {
+      console.error("Error starting conversation:", error);
+      showToast("Failed to start conversation. Please try again.", "error");
+    } finally {
+      setHiringDealId(null);
+    }
   };
 
   useEffect(() => {
@@ -461,44 +510,32 @@ export const Matches: React.FC = () => {
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => handleOpenChat(deal)}
+                    onClick={() => handleHire(deal)}
+                    disabled={hiringDealId === deal.id}
                     className="flex-1 sm:flex-none"
                   >
-                    <Icon name="chat" className="text-sm mr-1" />
-                    Chat
+                    {hiringDealId === deal.id ? (
+                      <>
+                        <Icon name="hourglass_empty" className="text-sm mr-1 animate-spin" />
+                        Starting...
+                      </>
+                    ) : (
+                      "Hire"
+                    )}
                   </Button>
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => updateDealStatus(deal.id, "ongoing")}
-                    className="flex-1 sm:flex-none"
-                  >
-                    Move to Ongoing
-                  </Button>
-                  <Button
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     onClick={() => handleViewDetails(deal)}
                     className="flex-1 sm:flex-none"
                   >
-                    View Details
+                    View Agency
                   </Button>
                 </div>
               </div>
             </Card>
           ))}
         </div>
-      )}
-
-      {/* Chat Drawer */}
-      {selectedDeal && selectedDeal.agency && (
-        <ChatDrawer
-          isOpen={chatOpen}
-          onClose={handleCloseChat}
-          deal={selectedDeal}
-          agency={selectedDeal.agency}
-          userType="business"
-        />
       )}
 
       {/* Generate Matches Modal */}

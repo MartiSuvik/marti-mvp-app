@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../lib/supabase";
-import { Message, MessagePayload, Conversation } from "../types";
+import { Message, MessagePayload, Conversation, MessageType, MessageAttachment } from "../types";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import { uploadChatAttachment } from "../lib/fileUpload";
 
 interface UseChatOptions {
   conversationId: string;
@@ -14,8 +15,9 @@ interface UseChatReturn {
   messages: Message[];
   loading: boolean;
   error: string | null;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, attachment?: File, messageType?: MessageType) => Promise<void>;
   sending: boolean;
+  markAsRead: () => Promise<void>;
 }
 
 export function useChat({
@@ -54,6 +56,8 @@ export function useChat({
         senderType: m.sender_type,
         senderName: m.sender_name,
         content: m.content,
+        messageType: m.message_type || "text",
+        attachments: m.attachments || undefined,
         createdAt: m.created_at,
         readAt: m.read_at,
       }));
@@ -113,14 +117,24 @@ export function useChat({
 
   // Send a message
   const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim() || !conversationId || sending) return;
+    async (content: string, attachment?: File, messageType: MessageType = "text") => {
+      // Must have either content or attachment
+      if (!content.trim() && !attachment) return;
+      if (!conversationId || sending) return;
 
       const trimmedContent = content.trim();
       setSending(true);
 
       try {
-        // 1. Insert to database (persistence)
+        let attachmentMetadata: MessageAttachment[] | undefined;
+
+        // 1. Upload file to storage if attachment exists
+        if (attachment) {
+          const uploadedAttachment = await uploadChatAttachment(attachment, conversationId);
+          attachmentMetadata = [uploadedAttachment];
+        }
+
+        // 2. Insert to database (persistence)
         const { data, error: insertError } = await supabase
           .from("messages")
           .insert({
@@ -129,6 +143,8 @@ export function useChat({
             sender_type: userType,
             sender_name: senderName,
             content: trimmedContent,
+            message_type: messageType,
+            attachments: attachmentMetadata,
           })
           .select()
           .single();
@@ -143,6 +159,8 @@ export function useChat({
           senderType: data.sender_type,
           senderName: data.sender_name,
           content: data.content,
+          messageType: data.message_type || "text",
+          attachments: data.attachments || undefined,
           createdAt: data.created_at,
           readAt: data.read_at,
         };
@@ -150,7 +168,7 @@ export function useChat({
         // Add to local state immediately
         setMessages((prev) => [...prev, newMessage]);
 
-        // 2. Broadcast to realtime (instant delivery to other users)
+        // 3. Broadcast to realtime (instant delivery to other users)
         if (channelRef.current) {
           channelRef.current.send({
             type: "broadcast",
@@ -159,7 +177,7 @@ export function useChat({
           });
         }
 
-        // 3. Update conversation updated_at
+        // 4. Update conversation updated_at
         await supabase
           .from("conversations")
           .update({ updated_at: new Date().toISOString() })
@@ -168,6 +186,7 @@ export function useChat({
       } catch (err: any) {
         console.error("Error sending message:", err);
         setError(err.message || "Failed to send message");
+        throw err; // Re-throw so UI can handle it
       } finally {
         setSending(false);
       }
@@ -175,12 +194,44 @@ export function useChat({
     [conversationId, userId, userType, senderName, sending]
   );
 
+  // Mark all messages from the other party as read
+  const markAsRead = useCallback(async () => {
+    if (!conversationId || !userId) return;
+
+    try {
+      const otherSenderType = userType === "business" ? "agency" : "business";
+      
+      const { error: updateError } = await supabase
+        .from("messages")
+        .update({ read_at: new Date().toISOString() })
+        .eq("conversation_id", conversationId)
+        .eq("sender_type", otherSenderType)
+        .is("read_at", null);
+
+      if (updateError) {
+        console.error("Error marking messages as read:", updateError);
+      }
+
+      // Update local state to reflect read status
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.senderType === otherSenderType && !msg.readAt
+            ? { ...msg, readAt: new Date().toISOString() }
+            : msg
+        )
+      );
+    } catch (err) {
+      console.error("Error marking messages as read:", err);
+    }
+  }, [conversationId, userId, userType]);
+
   return {
     messages,
     loading,
     error,
     sendMessage,
     sending,
+    markAsRead,
   };
 }
 

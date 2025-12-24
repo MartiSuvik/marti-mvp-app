@@ -53,7 +53,6 @@ const AD_SPEND_OPTIONS = [
 const AD_PLATFORMS_OPTIONS = [
   { value: "Meta", label: "Meta (Facebook/Instagram)" },
   { value: "Google", label: "Google Ads" },
-  { value: "TikTok", label: "TikTok" },
   { value: "None yet", label: "None yet" },
 ];
 

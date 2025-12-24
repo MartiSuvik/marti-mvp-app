@@ -1,28 +1,32 @@
-import React, { useEffect, useRef } from "react";
+import React from "react";
 import { Message } from "../../types";
-import { ChatMessage } from "./ChatMessage";
 import { Icon } from "../Icon";
+import { ChatMessageList } from "./ChatMessageList";
+import {
+  ChatBubble,
+  ChatBubbleAvatar,
+  ChatBubbleMessage,
+  ChatBubbleTimestamp,
+  ChatBubbleName,
+} from "./ChatBubble";
 
 interface ChatMessagesProps {
   messages: Message[];
   currentUserId: string;
   loading: boolean;
+  agencyLogo?: string;
 }
 
 export const ChatMessages: React.FC<ChatMessagesProps> = ({
   messages,
   currentUserId,
   loading,
+  agencyLogo,
 }) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
 
   if (loading) {
     return (
@@ -82,15 +86,12 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
   });
 
   return (
-    <div
-      ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 py-4 space-y-4"
-    >
+    <ChatMessageList className="flex-1">
       {groupedMessages.map((group, groupIndex) => (
-        <div key={groupIndex}>
+        <div key={groupIndex} className="space-y-4">
           {/* Date separator */}
-          <div className="flex items-center justify-center my-4">
-            <div className="bg-gray-200 dark:bg-gray-700 rounded-full px-3 py-1">
+          <div className="flex items-center justify-center my-2">
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-full px-4 py-1.5 shadow-sm">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                 {group.date}
               </span>
@@ -98,18 +99,42 @@ export const ChatMessages: React.FC<ChatMessagesProps> = ({
           </div>
 
           {/* Messages for this date */}
-          {group.messages.map((message) => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              isOwn={message.senderId === currentUserId}
-            />
-          ))}
+          {group.messages.map((message) => {
+            const isOwn = message.senderId === currentUserId;
+            const initials = message.senderName
+              ?.split(" ")
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2) || "?";
+
+            return (
+              <ChatBubble key={message.id} variant={isOwn ? "sent" : "received"}>
+                {!isOwn && (
+                  <ChatBubbleAvatar
+                    src={agencyLogo}
+                    fallback={initials}
+                  />
+                )}
+                <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"}`}>
+                  {!isOwn && (
+                    <ChatBubbleName>{message.senderName}</ChatBubbleName>
+                  )}
+                  <ChatBubbleMessage 
+                    variant={isOwn ? "sent" : "received"}
+                    attachment={message.attachments?.[0]}
+                  >
+                    {message.content}
+                  </ChatBubbleMessage>
+                  <ChatBubbleTimestamp>
+                    {formatTime(message.createdAt)}
+                  </ChatBubbleTimestamp>
+                </div>
+              </ChatBubble>
+            );
+          })}
         </div>
       ))}
-      
-      {/* Scroll anchor */}
-      <div ref={messagesEndRef} />
-    </div>
+    </ChatMessageList>
   );
 };

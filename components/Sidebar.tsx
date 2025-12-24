@@ -2,9 +2,11 @@ import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Icon } from "./Icon";
 import { NavItem } from "../types";
+import { useUnreadCount } from "../hooks/useUnreadCount";
 
 const mainNavItems: NavItem[] = [
   { label: "Matches", icon: "handshake", href: "/deals" },
+  { label: "Messages", icon: "chat", href: "/messages" },
   { label: "Proposals", icon: "description", href: "/proposals" },
   { label: "Jobs", icon: "work", href: "/jobs" },
   { label: "Agencies", icon: "people", href: "/agencies" },
@@ -17,10 +19,11 @@ const accountNavItems: NavItem[] = [
 
 export const Sidebar: React.FC = () => {
   const location = useLocation();
+  const { unreadCount } = useUnreadCount();
 
   const isActive = (href?: string) => {
     if (!href) return false;
-    return location.pathname === href;
+    return location.pathname === href || location.pathname.startsWith(href + "/");
   };
 
   return (
@@ -41,6 +44,7 @@ export const Sidebar: React.FC = () => {
         <div className="mb-6">
           {mainNavItems.map((item) => {
             const active = isActive(item.href);
+            const showBadge = item.label === "Messages" && unreadCount > 0;
             return (
               <Link
                 key={item.label}
@@ -60,7 +64,12 @@ export const Sidebar: React.FC = () => {
                   }`}
                 />
                 {item.label}
-                {item.badge && (
+                {showBadge && (
+                  <span className="ml-auto text-xs font-bold text-white bg-gradient-to-r from-primary to-pink-600 px-2 py-0.5 rounded-full shadow-lg min-w-[20px] text-center">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
+                {item.badge && !showBadge && (
                   <span className="ml-auto text-xs font-bold text-white bg-gradient-to-r from-primary to-pink-600 px-2 py-1 rounded-full shadow-lg">
                     {item.badge}
                   </span>

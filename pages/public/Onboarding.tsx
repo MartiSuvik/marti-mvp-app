@@ -55,7 +55,6 @@ const AD_SPEND_OPTIONS = [
 const AD_PLATFORMS_OPTIONS = [
   { value: "Meta", label: "Meta (Facebook/Instagram)" },
   { value: "Google", label: "Google Ads" },
-  { value: "TikTok", label: "TikTok" },
   { value: "None yet", label: "None yet" },
 ];
 
@@ -132,30 +131,30 @@ export const Onboarding: React.FC = () => {
   const [userType, setUserType] = useState<"business" | "agency" | null>(null);
   const [loading, setLoading] = useState(false);
   
-  // New questionnaire answers
+  // New questionnaire answers - defaults match FIRST option in each dropdown
   const [answers, setAnswers] = useState<Partial<OnboardingAnswers>>({
     // Section A: Business Basics
     productDescription: "",
-    monthlyRevenue: "$50k–$100k",
-    aov: "$30–$70",
-    profitMargin: "40–55%",
+    monthlyRevenue: "$10k–$50k",
+    aov: "< $30",
+    profitMargin: "< 40%",
     businessModel: "One-time purchase",
     // Section B: Ads & Performance
-    adSpend: "$1k–$5k",
+    adSpend: "$0",
     adPlatforms: ["Meta"],
     otherPlatforms: "",
-    revenueConsistency: "Mostly stable",
-    profitableAds: "Not sure",
+    revenueConsistency: "Very inconsistent",
+    profitableAds: "Yes",
     adsExperience: "< 3 months",
     // Section C: Creative & Funnel
     monthlyCreatives: "0–3",
     testimonialCount: "< 20",
     creativeCreator: "Founder",
     // Section D: Operations
-    inventoryStatus: "Regular stock",
+    inventoryStatus: "Few items",
     otherInventory: "",
-    fulfillmentTime: "3–7 days",
-    returnIssues: "Low",
+    fulfillmentTime: "1–3 days",
+    returnIssues: "High",
     teamMember: "",
   });
   
@@ -185,6 +184,13 @@ export const Onboarding: React.FC = () => {
   ];
 
   const totalQuestions = 17;
+
+  // Check if current step has valid input (for required fields without defaults)
+  const isCurrentStepValid = () => {
+    if (step === 1 && !answers.productDescription?.trim()) return false;
+    if (step === 17 && !answers.teamMember?.trim()) return false;
+    return true;
+  };
 
   const handleNext = () => {
     setStep(step + 1);
@@ -236,11 +242,14 @@ export const Onboarding: React.FC = () => {
         return;
       }
       
-      const { error } = await signUp(email, password, name);
+      // Pass onboarding answers to signUp - they'll be stored in user metadata
+      // This ensures data survives email verification redirect (which may open in new tab)
+      const { error } = await signUp(email, password, name, answers as OnboardingAnswers);
       if (error) {
         setRegistrationError(error.message);
         showToast(error.message, "error");
       } else {
+        // Keep localStorage as backup for same-tab scenarios
         localStorage.setItem("onboardingAnswers", JSON.stringify(answers));
         showToast("Account created! Please verify your email.", "success");
         setStep(19); // Go to verification step
@@ -365,7 +374,7 @@ export const Onboarding: React.FC = () => {
       {
         id: "1",
         name: "Elevate Digital",
-        platforms: ["Meta", "Google", "TikTok"],
+        platforms: ["Meta", "Google"],
         industries: ["E-commerce"],
         spendBrackets: ["$5k–$20k", "$20k+"],
         objectives: ["Scale spend", "Creative improvement"],
@@ -383,7 +392,7 @@ export const Onboarding: React.FC = () => {
       {
         id: "3",
         name: "Scale Studio",
-        platforms: ["Meta", "TikTok"],
+        platforms: ["Meta"],
         industries: ["E-commerce"],
         spendBrackets: ["$5k–$20k", "$20k+"],
         objectives: ["Creative improvement", "Scale spend"],
@@ -1217,12 +1226,12 @@ export const Onboarding: React.FC = () => {
               </Button>
               
               {step === totalQuestions ? (
-                <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+                <Button variant="primary" onClick={handleSubmit} disabled={loading || !isCurrentStepValid()}>
                   {loading ? "Processing..." : "Find My Matches"}
                   <Icon name="arrow_forward" className="ml-2" />
                 </Button>
               ) : (
-                <Button variant="primary" onClick={handleNext}>
+                <Button variant="primary" onClick={handleNext} disabled={!isCurrentStepValid()}>
                   Continue
                   <Icon name="arrow_forward" className="ml-2" />
                 </Button>

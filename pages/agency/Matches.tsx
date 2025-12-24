@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
-import { ChatDrawer } from "../../components/chat";
-import { Deal, Agency } from "../../types";
 
 interface BusinessInfo {
   id: string;
@@ -31,21 +29,47 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
 type FilterTab = "all" | "new" | "active" | "ongoing";
 
 export const Matches: React.FC = () => {
-  const { agency } = useAuth();
+  const { agency, user } = useAuth();
+  const navigate = useNavigate();
   const [deals, setDeals] = useState<DealWithBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
-  const [chatOpen, setChatOpen] = useState(false);
-  const [selectedDeal, setSelectedDeal] = useState<DealWithBusiness | null>(null);
 
-  const handleOpenChat = (deal: DealWithBusiness) => {
-    setSelectedDeal(deal);
-    setChatOpen(true);
-  };
+  // Navigate to messages - creates conversation if needed
+  const handleOpenChat = async (deal: DealWithBusiness) => {
+    if (!agency?.id || !deal.userId) return;
 
-  const handleCloseChat = () => {
-    setChatOpen(false);
-    setSelectedDeal(null);
+    try {
+      // Check if conversation exists
+      const { data: existing } = await supabase
+        .from("conversations")
+        .select("id")
+        .eq("deal_id", deal.id)
+        .single();
+
+      if (existing) {
+        navigate(`/agency/messages/${existing.id}`);
+        return;
+      }
+
+      // Create new conversation
+      const { data: newConvo, error } = await supabase
+        .from("conversations")
+        .insert({
+          deal_id: deal.id,
+          business_id: deal.userId,
+          agency_id: agency.id,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      if (newConvo) {
+        navigate(`/agency/messages/${newConvo.id}`);
+      }
+    } catch (err) {
+      console.error("Error opening chat:", err);
+    }
   };
 
   useEffect(() => {
@@ -256,13 +280,13 @@ export const Matches: React.FC = () => {
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        handleOpenChat(deal);
+                        await handleOpenChat(deal);
                       }}
                     >
                       <Icon name="chat" className="mr-1" />
-                      Chat
+                      Message
                     </Button>
 
                     <Icon name="chevron_right" className="text-gray-400" />
@@ -291,17 +315,6 @@ export const Matches: React.FC = () => {
             );
           })}
         </div>
-      )}
-
-      {/* Chat Drawer */}
-      {selectedDeal && agency && (
-        <ChatDrawer
-          isOpen={chatOpen}
-          onClose={handleCloseChat}
-          deal={selectedDeal as Deal}
-          agency={agency as Agency}
-          userType="agency"
-        />
       )}
     </div>
   );

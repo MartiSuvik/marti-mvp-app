@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { OnboardingAnswers } from "../../types";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Icon } from "../../components/Icon";
@@ -12,35 +13,37 @@ interface LoginProps {
 
 export const Login: React.FC<LoginProps> = ({ initialMode }) => {
   const location = useLocation();
-  const [isSignUp, setIsSignUp] = useState(initialMode === "signup");
+  const navigate = useNavigate();
+  const { signIn, signUp, profile, user, loading: authLoading, authState } = useAuth();
+  const { showToast } = useToast();
+
+  // Check if coming from onboarding - only then allow signup form
+  const hasOnboardingData = localStorage.getItem("onboardingAnswers") !== null;
+  
+  // Only show signup if explicitly requested via initialMode="signup" AND has onboarding data
+  // Default to login form for /login route
+  const [isSignUp, setIsSignUp] = useState(initialMode === "signup" && hasOnboardingData);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
-  const { signIn, signUp, profile, user, loading: authLoading, authState } = useAuth();
-  const { showToast } = useToast();
-  const navigate = useNavigate();
 
-  // Check if coming from onboarding
-  const hasOnboardingData = localStorage.getItem("onboardingAnswers") !== null;
+  // If someone tries to access /signup without onboarding data, redirect to onboarding
+  useEffect(() => {
+    if (initialMode === "signup" && !hasOnboardingData) {
+      navigate("/onboarding", { replace: true });
+    }
+  }, [initialMode, hasOnboardingData, navigate]);
   
   // Redirect based on user type when authenticated
   useEffect(() => {
-    // Only redirect when auth is fully loaded AND we have both user and profile
     if (authState === "authenticated" && user && profile) {
       const destination = profile.userType === "agency" ? "/agency" : "/deals";
       console.log("[Login] Redirecting to:", destination);
       navigate(destination, { replace: true });
     }
   }, [authState, user, profile, navigate]);
-  
-  useEffect(() => {
-    // If coming from onboarding, default to signup mode
-    if (hasOnboardingData && !initialMode) {
-      setIsSignUp(true);
-    }
-  }, [hasOnboardingData, initialMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,19 +58,21 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
           setFormLoading(false);
           return;
         }
-        const { error } = await signUp(email, password, name);
+        // Parse onboarding answers from localStorage and pass to signUp
+        let onboardingAnswers: OnboardingAnswers | undefined;
+        try {
+          const stored = localStorage.getItem("onboardingAnswers");
+          if (stored) onboardingAnswers = JSON.parse(stored);
+        } catch (e) {
+          console.error("Error parsing onboarding data:", e);
+        }
+        const { error } = await signUp(email, password, name, onboardingAnswers);
         if (error) {
           setError(error.message);
           showToast(error.message, "error");
         } else {
-          // Check if we have onboarding data to process
-          if (hasOnboardingData) {
-            showToast("Account created! Generating your matches...", "success");
-            // New signups from onboarding are always businesses - useEffect will redirect
-          } else {
-            showToast("Account created successfully!", "success");
-            setTimeout(() => navigate("/onboarding"), 500);
-          }
+          showToast("Account created! Welcome to ScalingAD!", "success");
+          // User already completed onboarding, useEffect will redirect to /deals
         }
       } else {
         const { error } = await signIn(email, password);
@@ -172,8 +177,13 @@ export const Login: React.FC<LoginProps> = ({ initialMode }) => {
             <button
               type="button"
               onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError("");
+                if (isSignUp) {
+                  setIsSignUp(false);
+                  setError("");
+                } else {
+                  // Redirect to onboarding for new users
+                  navigate("/onboarding");
+                }
               }}
               className="text-sm text-primary hover:text-pink-600 dark:hover:text-pink-400 font-medium"
             >

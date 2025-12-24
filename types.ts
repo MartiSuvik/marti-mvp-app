@@ -210,6 +210,21 @@ export interface Conversation {
   unreadCount?: number;
 }
 
+// Message types for special formatting
+export type MessageType = "text" | "video_call" | "system";
+
+// Attachment types
+export type AttachmentType = "image" | "document";
+
+// File attachment metadata
+export interface MessageAttachment {
+  type: AttachmentType;
+  name: string;
+  url: string;
+  size: number;
+  mimeType?: string;
+}
+
 // Chat message
 export interface Message {
   id: string;
@@ -218,6 +233,8 @@ export interface Message {
   senderType: "business" | "agency";
   senderName: string;
   content: string;
+  messageType?: MessageType;
+  attachments?: MessageAttachment[];
   createdAt: string;
   readAt?: string;
 }
@@ -230,6 +247,8 @@ export interface MessagePayload {
   senderType: "business" | "agency";
   senderName: string;
   content: string;
+  messageType?: MessageType;
+  attachments?: MessageAttachment[];
   createdAt: string;
 }
 

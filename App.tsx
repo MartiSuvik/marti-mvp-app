@@ -16,6 +16,7 @@ import { Waitlist } from "./pages/public/Waitlist";
 
 // Brand pages
 import { Matches as BrandMatches } from "./pages/brand/Matches";
+import { Messages as BrandMessages } from "./pages/brand/Messages";
 import { Proposals as BrandProposals } from "./pages/brand/Proposals";
 import { Jobs } from "./pages/brand/Jobs";
 import { JobDetail } from "./pages/brand/JobDetail";
@@ -28,6 +29,7 @@ import { Support } from "./pages/brand/Support";
 // Agency pages
 import { Dashboard as AgencyDashboard } from "./pages/agency/Dashboard";
 import { Matches as AgencyMatches } from "./pages/agency/Matches";
+import { Messages as AgencyMessages } from "./pages/agency/Messages";
 import { Proposals as AgencyProposals } from "./pages/agency/Proposals";
 import { Projects as AgencyProjects } from "./pages/agency/Projects";
 import { ProjectDetail as AgencyProjectDetail } from "./pages/agency/ProjectDetail";
@@ -159,6 +161,26 @@ const App: React.FC = () => {
               }
             />
             <Route
+              path="/messages"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <BrandMessages />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            <Route
+              path="/messages/:conversationId"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <BrandMessages />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            <Route
               path="/proposals"
               element={
                 <BrandProtectedRoute>
@@ -266,6 +288,26 @@ const App: React.FC = () => {
                 <AgencyProtectedRoute>
                   <AgencyDashboardLayout>
                     <AgencyMatches />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/messages"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyMessages />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/messages/:conversationId"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyMessages />
                   </AgencyDashboardLayout>
                 </AgencyProtectedRoute>
               }

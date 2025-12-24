@@ -148,7 +148,7 @@ CREATE TRIGGER update_deals_updated_at
 -- Insert sample agencies (optional - for testing)
 INSERT INTO agencies (name, description, platforms, industries, spend_brackets, objectives, capabilities, verified) VALUES
 ('Elevate Digital', 'Full-service digital marketing agency specializing in e-commerce and SaaS growth.', 
- ARRAY['FB/IG', 'Google', 'TikTok'], ARRAY['E-commerce', 'SaaS'], 
+ ARRAY['FB/IG', 'Google'], ARRAY['E-commerce', 'SaaS'], 
  ARRAY['$5–20k', '$20–50k', '$50–150k'], 
  ARRAY['Improve ROAS', 'Scale spend', 'Creative improvement'],
  ARRAY['Social Media', 'Content', 'ROAS Optimization', 'Creative Development'], true),
