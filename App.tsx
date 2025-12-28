@@ -17,7 +17,8 @@ import { Waitlist } from "./pages/public/Waitlist";
 // Brand pages
 import { Matches as BrandMatches } from "./pages/brand/Matches";
 import { Messages as BrandMessages } from "./pages/brand/Messages";
-import { Proposals as BrandProposals } from "./pages/brand/Proposals";
+import BrandProposals from "./pages/brand/Proposals";
+import ProposalDetail from "./pages/brand/ProposalDetail";
 import { Jobs } from "./pages/brand/Jobs";
 import { JobDetail } from "./pages/brand/JobDetail";
 import { CreateJob } from "./pages/brand/CreateJob";
@@ -30,7 +31,8 @@ import { Support } from "./pages/brand/Support";
 import { Dashboard as AgencyDashboard } from "./pages/agency/Dashboard";
 import { Matches as AgencyMatches } from "./pages/agency/Matches";
 import { Messages as AgencyMessages } from "./pages/agency/Messages";
-import { Proposals as AgencyProposals } from "./pages/agency/Proposals";
+import AgencyProposals from "./pages/agency/Proposals";
+import CreateProposal from "./pages/agency/CreateProposal";
 import { Projects as AgencyProjects } from "./pages/agency/Projects";
 import { ProjectDetail as AgencyProjectDetail } from "./pages/agency/ProjectDetail";
 import { Profile as AgencyProfile } from "./pages/agency/Profile";
@@ -191,6 +193,16 @@ const App: React.FC = () => {
               }
             />
             <Route
+              path="/proposals/:id"
+              element={
+                <BrandProtectedRoute>
+                  <DashboardLayout>
+                    <ProposalDetail />
+                  </DashboardLayout>
+                </BrandProtectedRoute>
+              }
+            />
+            <Route
               path="/agencies"
               element={
                 <BrandProtectedRoute>
@@ -323,6 +335,16 @@ const App: React.FC = () => {
               }
             />
             <Route
+              path="/agency/proposals/create"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <CreateProposal />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
               path="/agency/jobs"
               element={
                 <AgencyProtectedRoute>
@@ -344,6 +366,16 @@ const App: React.FC = () => {
             />
             <Route
               path="/agency/payouts"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <StripeOnboarding />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/stripe"
               element={
                 <AgencyProtectedRoute>
                   <AgencyDashboardLayout>

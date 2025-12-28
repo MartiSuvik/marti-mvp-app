@@ -144,29 +144,31 @@ export const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
 
-      <div className="flex items-end gap-3">
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".jpg,.jpeg,.png,.webp,.pdf,.docx"
-          onChange={handleFileSelect}
-          className="hidden"
-          disabled={isDisabled || selectedFile !== null}
-        />
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.pdf,.docx"
+        onChange={handleFileSelect}
+        className="hidden"
+        disabled={isDisabled || selectedFile !== null}
+      />
 
+      <div className="flex items-center gap-2">
         {/* Attach button */}
         <button
+          type="button"
           onClick={handleAttachClick}
           disabled={isDisabled || selectedFile !== null}
-          className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
             selectedFile
               ? "bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-600 cursor-not-allowed"
-              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600"
+              : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 active:scale-95"
           } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
           title={`Attach file (${getAllowedExtensions()})`}
+          aria-label="Attach file"
         >
-          <Icon name="attach_file" className="text-xl" />
+          <Icon name="attach_file" className="text-lg" />
         </button>
 
         {/* Message input */}
@@ -179,33 +181,30 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             placeholder={placeholder}
             rows={1}
             disabled={isDisabled}
-            className="w-full resize-none rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 pr-12 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 transition-all"
+            className="w-full resize-none rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 transition-all"
             style={{ maxHeight: "120px" }}
           />
         </div>
 
         {/* Send button */}
         <button
+          type="button"
           onClick={handleSend}
           disabled={(!message.trim() && !selectedFile) || isDisabled}
-          className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all ${
             (message.trim() || selectedFile) && !isDisabled
-              ? "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/25"
+              ? "bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/25 active:scale-95"
               : "bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed"
           }`}
+          aria-label="Send message"
         >
           {sending ? (
-            <Icon name="hourglass_empty" className="text-xl animate-spin" />
+            <Icon name="hourglass_empty" className="text-lg animate-spin" />
           ) : (
-            <Icon name="send" className="text-xl" />
+            <Icon name="send" className="text-lg" />
           )}
         </button>
       </div>
-      
-      {/* Hint text */}
-      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-        Press Enter to send, Shift+Enter for new line • Max 10MB • {getAllowedExtensions()}
-      </p>
     </div>
   );
 };

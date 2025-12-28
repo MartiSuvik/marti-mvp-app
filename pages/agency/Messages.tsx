@@ -12,12 +12,15 @@ import {
   ChatBubbleTimestamp,
   ChatBubbleName,
 } from "../../components/chat/ChatBubble";
+import { ChatInput } from "../../components/chat/ChatInput";
+import { useToast } from "../../contexts/ToastContext";
 
 export const Messages: React.FC = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams<{ conversationId?: string }>();
   const { user, agencyProfile } = useAuth();
   const { conversations, loading: loadingConversations } = useConversations();
+  const { showToast } = useToast();
   
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,10 +41,7 @@ export const Messages: React.FC = () => {
     senderName,
   });
 
-  // Message input state
-  const [messageText, setMessageText] = useState("");
   const [startingCall, setStartingCall] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Select conversation from URL or first available
   useEffect(() => {
@@ -76,30 +76,6 @@ export const Messages: React.FC = () => {
     navigate(`/agency/messages/${conv.id}`, { replace: true });
   };
 
-  const handleSend = () => {
-    if (messageText.trim() && !sending) {
-      sendMessage(messageText.trim());
-      setMessageText("");
-      if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
-      }
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setMessageText(e.target.value);
-    const textarea = e.target;
-    textarea.style.height = "auto";
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
-  };
-
   const handleStartVideoCall = async () => {
     if (!selectedConversation || startingCall) return;
 
@@ -116,6 +92,7 @@ export const Messages: React.FC = () => {
         // Post error message to chat
         await sendMessage(
           "⚠️ Video call service couldn't launch right now. Development team is on it.",
+          undefined,
           "system"
         );
         return;
@@ -124,12 +101,14 @@ export const Messages: React.FC = () => {
       // Post the join link to chat with special formatting
       await sendMessage(
         `📹 I've started a video call! Join here: ${data.joinUrl}`,
+        undefined,
         "video_call"
       );
     } catch (err) {
       console.error("Error starting video call:", err);
       await sendMessage(
         "⚠️ Video call service couldn't launch right now. Development team is on it.",
+        undefined,
         "system"
       );
     } finally {
@@ -422,7 +401,10 @@ export const Messages: React.FC = () => {
                           {!isOwn && (
                             <ChatBubbleName>{message.senderName}</ChatBubbleName>
                           )}
-                          <ChatBubbleMessage variant={isOwn ? "sent" : "received"}>
+                          <ChatBubbleMessage 
+                            variant={isOwn ? "sent" : "received"}
+                            attachment={message.attachments?.[0]}
+                          >
                             {message.content}
                           </ChatBubbleMessage>
                           <ChatBubbleTimestamp>
@@ -438,46 +420,18 @@ export const Messages: React.FC = () => {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-              <div className="flex items-end gap-3">
-                {/* Attachment & Formatting buttons */}
-                <div className="flex items-center gap-1 pb-2">
-                  <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-gray-500 hover:text-gray-700">
-                    <Icon name="attach_file" className="text-lg" />
-                  </button>
-                </div>
-
-                {/* Text input */}
-                <div className="flex-1">
-                  <textarea
-                    ref={textareaRef}
-                    value={messageText}
-                    onChange={handleTextareaChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Send a message..."
-                    rows={1}
-                    disabled={sending}
-                    className="w-full resize-none rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 px-4 py-3 text-sm text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50"
-                    style={{ maxHeight: "120px" }}
-                  />
-                </div>
-
-                {/* Right side buttons */}
-                <div className="flex items-center gap-1 pb-2">
-                  <button
-                    onClick={handleSend}
-                    disabled={!messageText.trim() || sending}
-                    className={`p-2 rounded-lg transition-colors ${
-                      messageText.trim() && !sending
-                        ? "text-primary hover:bg-primary/10"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    <Icon name="send" className="text-lg" />
-                  </button>
-                </div>
-              </div>
-            </div>
+            <ChatInput
+              onSend={async (content, attachment) => {
+                try {
+                  await sendMessage(content, attachment);
+                } catch (err: any) {
+                  showToast(err.message || "Failed to send message", "error");
+                }
+              }}
+              disabled={sending}
+              sending={sending}
+              placeholder="Send a message..."
+            />
           </>
         ) : (
           /* No conversation selected */

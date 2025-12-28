@@ -153,6 +153,15 @@ export const MessageChat: React.FC = () => {
             Client
           </p>
         </div>
+
+        {/* Send Proposal Button */}
+        <button
+          onClick={() => navigate(`/agency/proposals/create?deal_id=${conversation.dealId}`)}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+        >
+          <Icon name="description" className="text-lg" />
+          <span className="hidden sm:inline">Send Proposal</span>
+        </button>
       </div>
 
       {/* Messages Area */}

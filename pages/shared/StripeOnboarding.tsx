@@ -22,63 +22,108 @@ import { Icon } from "../../components/Icon";
  * for security (secret keys never exposed to frontend).
  */
 
-type OnboardingStatus = "loading" | "not_started" | "pending" | "complete" | "error";
+type OnboardingStatus = "loading" | "not_started" | "pending" | "complete" | "error" | "verifying";
 
 export const StripeOnboarding: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { agency } = useAuth();
   const { showToast } = useToast();
   
   const [status, setStatus] = useState<OnboardingStatus>("loading");
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [verificationStartTime, setVerificationStartTime] = useState<number | null>(null);
 
   // Check for return from Stripe
   const returnStatus = searchParams.get("status"); // "success" or "refresh"
 
   useEffect(() => {
     checkOnboardingStatus();
-  }, [user]);
+  }, [agency]);
 
   useEffect(() => {
     // Handle return from Stripe
     if (returnStatus === "success") {
-      showToast("Stripe account connected successfully!", "success");
-      checkOnboardingStatus();
+      verifyStripeAccount();
     } else if (returnStatus === "refresh") {
       showToast("Please complete your Stripe onboarding", "info");
       checkOnboardingStatus();
     }
   }, [returnStatus]);
 
+  // Timeout check for verification
+  useEffect(() => {
+    if (status === "verifying" && verificationStartTime) {
+      const elapsed = Date.now() - verificationStartTime;
+      if (elapsed > 5000) {
+        // Show manual refresh button after 5 seconds
+        setStatus("pending");
+      }
+    }
+  }, [status, verificationStartTime]);
+
+  const verifyStripeAccount = async () => {
+    if (!agency?.id) {
+      showToast("Agency not found", "error");
+      return;
+    }
+
+    setStatus("verifying");
+    setVerificationStartTime(Date.now());
+
+    try {
+      // Call edge function to verify account status from Stripe API
+      const { data, error } = await supabase.functions.invoke('verify-stripe-account', {
+        body: { agency_id: agency.id }
+      });
+
+      if (error) throw error;
+
+      if (data?.onboarding_complete && data?.ready_for_payouts) {
+        showToast("Stripe account connected successfully!", "success");
+        setStatus("complete");
+        setStripeAccountId(data.stripe_account_id);
+      } else {
+        showToast("Onboarding incomplete. Please finish setup.", "info");
+        setStatus("pending");
+      }
+
+      // Refresh status from database
+      await checkOnboardingStatus();
+    } catch (error: any) {
+      console.error("Error verifying Stripe account:", error);
+      showToast(error.message || "Failed to verify Stripe account", "error");
+      setStatus("pending");
+      // Still check database in case webhook already updated
+      await checkOnboardingStatus();
+    } finally {
+      setVerificationStartTime(null);
+    }
+  };
+
   const checkOnboardingStatus = async () => {
-    if (!user) {
+    if (!agency?.id) {
       setStatus("not_started");
       return;
     }
 
     try {
-      // For now, we'll check if the user has an agency profile
-      // In a real implementation, this would check the agency's Stripe status
-      // This is a placeholder - you'd need to link users to agencies first
-      
-      // Simulating: Check if we have any agency with Stripe connected
-      const { data: agencies, error } = await supabase
+      // Check the current agency's Stripe status
+      const { data: agencyData, error } = await supabase
         .from("agencies")
         .select("id, name, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled")
-        .not("stripe_account_id", "is", null)
-        .limit(1);
+        .eq("id", agency.id)
+        .single();
 
       if (error) throw error;
 
-      if (agencies && agencies.length > 0) {
-        const agency = agencies[0];
-        setStripeAccountId(agency.stripe_account_id);
+      if (agencyData) {
+        setStripeAccountId(agencyData.stripe_account_id);
         
-        if (agency.stripe_onboarding_complete && agency.stripe_payouts_enabled) {
+        if (agencyData.stripe_onboarding_complete && agencyData.stripe_payouts_enabled) {
           setStatus("complete");
-        } else if (agency.stripe_account_id) {
+        } else if (agencyData.stripe_account_id) {
           setStatus("pending");
         } else {
           setStatus("not_started");
@@ -93,15 +138,20 @@ export const StripeOnboarding: React.FC = () => {
   };
 
   const handleStartOnboarding = async () => {
+    if (!agency?.id) {
+      showToast("Agency not found", "error");
+      return;
+    }
+
     setLoading(true);
     
     try {
       // Call Supabase Edge Function to create Connect account
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         body: { 
-          agency_id: stripeAccountId ? undefined : "YOUR_AGENCY_ID", // TODO: Get actual agency ID
-          return_url: `${window.location.origin}/stripe-onboarding?status=success`,
-          refresh_url: `${window.location.origin}/stripe-onboarding?status=refresh`
+          agency_id: agency.id,
+          return_url: `${window.location.origin}/agency/payouts?status=success`,
+          refresh_url: `${window.location.origin}/agency/payouts?status=refresh`
         }
       });
       
@@ -126,11 +176,11 @@ export const StripeOnboarding: React.FC = () => {
     setLoading(true);
     
     try {
-      // In production, this would call Edge Function to get a new Account Link
-      showToast("Stripe Connect integration requires Edge Functions setup", "info");
+      // Verify account status from Stripe
+      await verifyStripeAccount();
     } catch (error: any) {
-      console.error("Error refreshing onboarding:", error);
-      showToast(error.message || "Failed to refresh onboarding link", "error");
+      console.error("Error refreshing status:", error);
+      showToast(error.message || "Failed to refresh status", "error");
     } finally {
       setLoading(false);
     }
@@ -143,6 +193,22 @@ export const StripeOnboarding: React.FC = () => {
           <div className="text-center py-16">
             <Icon name="hourglass_empty" className="text-5xl text-primary animate-spin mx-auto mb-4" />
             <p className="text-gray-600 dark:text-gray-400">Checking onboarding status...</p>
+          </div>
+        );
+
+      case "verifying":
+        return (
+          <div className="text-center py-16">
+            <Icon name="verified" className="text-5xl text-primary animate-pulse mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Verifying Your Stripe Account
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Please wait while we confirm your account details...
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-500">
+              This usually takes just a few seconds
+            </p>
           </div>
         );
 
@@ -164,7 +230,7 @@ export const StripeOnboarding: React.FC = () => {
               </p>
             )}
             <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => navigate("/agencies")}>
+              <Button variant="outline" onClick={() => navigate("/agency/dashboard")}>
                 Back to Dashboard
               </Button>
               <Button variant="primary" onClick={() => window.open("https://dashboard.stripe.com", "_blank")}>
@@ -186,25 +252,38 @@ export const StripeOnboarding: React.FC = () => {
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
               Your Stripe account was created but onboarding isn't complete. 
-              Please finish setting up your account to receive payments.
+              Click below to verify your status or continue setup.
             </p>
-            <Button 
-              variant="primary" 
-              onClick={handleRefreshOnboarding}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Icon name="hourglass_empty" className="mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <Icon name="refresh" className="mr-2" />
-                  Continue Onboarding
-                </>
-              )}
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button 
+                variant="outline" 
+                onClick={handleRefreshOnboarding}
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Icon name="hourglass_empty" className="mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  <>
+                    <Icon name="refresh" className="mr-2" />
+                    Refresh Status
+                  </>
+                )}
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleStartOnboarding}
+                disabled={loading}
+              >
+                <Icon name="launch" className="mr-2" />
+                Continue Onboarding
+              </Button>
+            </div>
+            <p className="text-xs text-gray-400 mt-4">
+              Just completed onboarding? Click "Refresh Status"
+            </p>
           </div>
         );
 

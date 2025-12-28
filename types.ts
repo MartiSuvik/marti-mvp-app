@@ -100,8 +100,35 @@ export interface OnboardingAnswers {
 }
 
 // ============================================
-// Stripe Connect & Jobs Types
+// Proposals & Jobs Types
 // ============================================
+
+// Proposal status state machine
+export type ProposalStatus =
+  | "draft"       // Agency creating proposal
+  | "sent"        // Sent to business, awaiting response (read-only for agency)
+  | "accepted"    // Business accepted, awaiting job creation
+  | "declined"    // Business declined
+  | "converted";  // Converted to job
+
+// Core Proposal interface
+export interface Proposal {
+  id: string;
+  dealId: string;
+  agencyId: string;
+  businessId: string;
+  title: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  platformFee: number;
+  status: ProposalStatus;
+  createdAt: string;
+  updatedAt: string;
+  // Joined data
+  agency?: Agency;
+  deal?: Deal;
+}
 
 // Job status state machine
 export type JobStatus =
@@ -118,12 +145,17 @@ export type JobStatus =
   | "cancelled"       // Job cancelled
   | "refunded";       // Funds returned to business
 
+// Job source - how the job was created
+export type JobSource = "proposal" | "direct";
+
 // Core Job interface
 export interface Job {
   id: string;
   dealId: string;
   businessId: string;
   agencyId: string;
+  proposalId?: string;
+  source: JobSource;
   title: string;
   description?: string;
   amount: number;
@@ -135,6 +167,7 @@ export interface Job {
   // Joined data
   agency?: Agency;
   deal?: Deal;
+  proposal?: Proposal;
 }
 
 // Job milestone for phased payments (future)

@@ -5,14 +5,15 @@ import { supabase } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
+import { Deal } from "../../types";
 
 interface BusinessInfo {
   id: string;
   companyName: string;
-  industry: string;
-  platforms: string[];
-  spendBracket: string;
-  objectives: string[];
+  productDescription: string;
+  adPlatforms: string[];
+  adSpend: string;
+  businessModel: string;
 }
 
 interface DealWithBusiness extends Deal {
@@ -37,15 +38,23 @@ export const Matches: React.FC = () => {
 
   // Navigate to messages - creates conversation if needed
   const handleOpenChat = async (deal: DealWithBusiness) => {
-    if (!agency?.id || !deal.userId) return;
+    if (!agency?.id || !deal.userId) {
+      console.error("Missing agency or business info:", { agencyId: agency?.id, businessId: deal.userId });
+      return;
+    }
 
     try {
       // Check if conversation exists
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("conversations")
         .select("id")
         .eq("deal_id", deal.id)
-        .single();
+        .maybeSingle();
+
+      if (existingError) {
+        console.error("Error checking for existing conversation:", existingError);
+        throw existingError;
+      }
 
       if (existing) {
         navigate(`/agency/messages/${existing.id}`);
@@ -79,54 +88,68 @@ export const Matches: React.FC = () => {
   }, [agency?.id]);
 
   const loadDeals = async () => {
-    if (!agency?.id) return;
+  if (!agency?.id) return;
 
-    try {
-      // Fetch deals for this agency with business info
-      const { data, error } = await supabase
-        .from("deals")
-        .select(`
-          *,
-          user_profiles!deals_user_id_fkey (
-            id,
-            company_name,
-            industry,
-            platforms,
-            spend_bracket,
-            objectives
-          )
-        `)
-        .eq("agency_id", agency.id)
-        .order("created_at", { ascending: false });
+  try {
+    // Fetch deals for this agency
+    const { data: dealsData, error: dealsError } = await supabase
+      .from("deals")
+      .select("*")
+      .eq("agency_id", agency.id)
+      .order("created_at", { ascending: false });
 
-      if (error) throw error;
+    if (dealsError) throw dealsError;
 
-      if (data) {
-        const mapped: DealWithBusiness[] = data.map((d: any) => ({
-          id: d.id,
-          userId: d.user_id,
-          agencyId: d.agency_id,
-          matchScore: d.match_score,
-          status: d.status,
-          createdAt: d.created_at,
-          updatedAt: d.updated_at,
-          business: d.user_profiles ? {
-            id: d.user_profiles.id,
-            companyName: d.user_profiles.company_name || "Unnamed Business",
-            industry: d.user_profiles.industry || "Not specified",
-            platforms: d.user_profiles.platforms || [],
-            spendBracket: d.user_profiles.spend_bracket || "Not specified",
-            objectives: d.user_profiles.objectives || [],
-          } : undefined,
-        }));
-        setDeals(mapped);
-      }
-    } catch (error) {
-      console.error("Error loading deals:", error);
-    } finally {
+    if (!dealsData || dealsData.length === 0) {
+      setDeals([]);
       setLoading(false);
+      return;
     }
-  };
+
+    // Get unique user IDs from deals
+    const userIds = [...new Set(dealsData.map(d => d.user_id))];
+
+    // Fetch user profiles for these users
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("user_profiles")
+      .select("id, user_id, company_name, product_description, ad_platforms, ad_spend, business_model")
+      .in("user_id", userIds);
+
+    if (profilesError) throw profilesError;
+
+    // Create a map of user_id -> profile
+    const profilesMap = new Map(
+      (profilesData || []).map(p => [p.user_id, p])
+    );
+
+    // Map deals with business info
+    const mapped: DealWithBusiness[] = dealsData.map((d: any) => {
+      const profile = profilesMap.get(d.user_id);
+      return {
+        id: d.id,
+        userId: d.user_id,
+        agencyId: d.agency_id,
+        matchScore: d.match_score,
+        status: d.status,
+        createdAt: d.created_at,
+        updatedAt: d.updated_at,
+        business: profile ? {
+          id: profile.id,
+          companyName: profile.company_name || "Unnamed Business",
+          productDescription: profile.product_description || "No description",
+          adPlatforms: profile.ad_platforms || [],
+          adSpend: profile.ad_spend || "Not specified",
+          businessModel: profile.business_model || "Not specified",
+        } : undefined,
+      };
+    });
+    setDeals(mapped);
+  } catch (error) {
+    console.error("Error loading deals:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filteredDeals = deals.filter((deal) => {
     if (activeTab === "all") return true;
@@ -226,11 +249,11 @@ export const Matches: React.FC = () => {
                       <div className="flex items-center gap-3 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Icon name="category" className="text-sm" />
-                          {deal.business?.industry || "Unknown Industry"}
+                          {deal.business?.businessModel || "Unknown Business Model"}
                         </span>
                         <span className="flex items-center gap-1">
                           <Icon name="payments" className="text-sm" />
-                          {deal.business?.spendBracket || "N/A"}
+                          {deal.business?.adSpend || "N/A"}
                         </span>
                       </div>
                     </div>
@@ -243,9 +266,9 @@ export const Matches: React.FC = () => {
                       <div className="text-xs text-gray-500">Match Score</div>
                     </div>
 
-                    {/* Platforms */}
+                    {/* Ad Platforms */}
                     <div className="hidden md:flex flex-wrap gap-1 max-w-[200px]">
-                      {deal.business?.platforms?.slice(0, 3).map((platform) => (
+                      {deal.business?.adPlatforms?.slice(0, 3).map((platform) => (
                         <span
                           key={platform}
                           className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg"
@@ -253,9 +276,9 @@ export const Matches: React.FC = () => {
                           {platform}
                         </span>
                       ))}
-                      {(deal.business?.platforms?.length || 0) > 3 && (
+                      {(deal.business?.adPlatforms?.length || 0) > 3 && (
                         <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 rounded-lg">
-                          +{(deal.business?.platforms?.length || 0) - 3}
+                          +{(deal.business?.adPlatforms?.length || 0) - 3}
                         </span>
                       )}
                     </div>
@@ -276,6 +299,19 @@ export const Matches: React.FC = () => {
                       </span>
                     )}
 
+                    {/* Send Proposal Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/agency/proposals/create?deal_id=${deal.id}`);
+                      }}
+                    >
+                      <Icon name="description" className="mr-1" />
+                      Send Proposal
+                    </Button>
+
                     {/* Chat Button */}
                     <Button
                       variant="primary"
@@ -293,20 +329,18 @@ export const Matches: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Objectives Row */}
-                {deal.business?.objectives && deal.business.objectives.length > 0 && (
+                {/* Product Description Row */}
+                {deal.business?.productDescription && (
                   <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-gray-500">Looking for:</span>
-                      <div className="flex flex-wrap gap-2">
-                        {deal.business.objectives.map((obj) => (
-                          <span
-                            key={obj}
-                            className="px-2 py-1 text-xs bg-primary/10 text-primary rounded-lg"
-                          >
-                            {obj}
-                          </span>
-                        ))}
+                    <div className="flex items-start gap-2 text-sm">
+                      <Icon name="description" className="text-gray-400 mt-0.5" />
+                      <div>
+                        <span className="text-gray-500 font-medium">Product:</span>
+                        <p className="text-gray-700 dark:text-gray-300 mt-1">
+                          {deal.business.productDescription.length > 120
+                            ? `${deal.business.productDescription.substring(0, 120)}...`
+                            : deal.business.productDescription}
+                        </p>
                       </div>
                     </div>
                   </div>

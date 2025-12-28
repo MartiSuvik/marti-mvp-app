@@ -217,7 +217,7 @@ export const Dashboard: React.FC = () => {
                 </p>
               </div>
             </div>
-            <Link to="/agency/stripe">
+            <Link to="/agency/payouts">
               <Button variant="primary">
                 <Icon name="account_balance" className="mr-2" />
                 Connect Stripe
