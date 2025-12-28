@@ -5,6 +5,7 @@ import { useToast } from "../../contexts/ToastContext";
 import { supabase } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { Select } from "../../components/ui/Select";
 import { Icon } from "../../components/Icon";
 
 /**
@@ -34,6 +35,7 @@ export const StripeOnboarding: React.FC = () => {
   const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [verificationStartTime, setVerificationStartTime] = useState<number | null>(null);
+  const [selectedCountry, setSelectedCountry] = useState<string>("EE");
 
   // Check for return from Stripe
   const returnStatus = searchParams.get("status"); // "success" or "refresh"
@@ -150,6 +152,7 @@ export const StripeOnboarding: React.FC = () => {
       const { data, error } = await supabase.functions.invoke('create-connect-account', {
         body: { 
           agency_id: agency.id,
+          country: selectedCountry,
           return_url: `${window.location.origin}/agency/payouts?status=success`,
           refresh_url: `${window.location.origin}/agency/payouts?status=refresh`
         }
@@ -344,6 +347,20 @@ export const StripeOnboarding: React.FC = () => {
                   Track all payments in real-time
                 </p>
               </div>
+            </div>
+
+            {/* Country Selector */}
+            <div className="max-w-md mx-auto mb-6">
+              <Select
+                label="Country"
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                helperText="Currently only available in Estonia"
+                disabled
+                options={[
+                  { value: "EE", label: "🇪🇪 Estonia" },
+                ]}
+              />
             </div>
 
             <Button 

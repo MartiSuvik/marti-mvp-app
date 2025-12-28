@@ -39,7 +39,7 @@ serve(async (req) => {
     });
 
     // Get request body
-    const { agency_id, return_url, refresh_url } = await req.json();
+    const { agency_id, return_url, refresh_url, country } = await req.json();
 
     if (!agency_id) {
       return new Response(JSON.stringify({ error: "agency_id is required" }), {
@@ -47,6 +47,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Validate country code (default to EE if not provided)
+    const accountCountry = country || "EE";
 
     // Get agency details
     const { data: agency, error: agencyError } = await supabase
@@ -68,7 +71,7 @@ serve(async (req) => {
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
         type: "express", // Using Express for simplest onboarding
-        country: "US",
+        country: accountCountry,
         capabilities: {
           card_payments: { requested: true },
           transfers: { requested: true },
@@ -77,6 +80,7 @@ serve(async (req) => {
         metadata: {
           agency_id: agency_id,
           platform: "scalingad",
+          country: accountCountry,
         },
       });
 
