@@ -182,13 +182,6 @@ export default function ProposalDetail() {
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="mb-8">
-        <button
-          onClick={() => navigate("/brand/proposals")}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-4 transition-colors"
-        >
-          <Icon name="arrow_back" />
-          Back to Proposals
-        </button>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{proposal.title}</h1>
@@ -289,29 +282,15 @@ export default function ProposalDetail() {
           <Card className="p-6 bg-white dark:bg-gray-900">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Pricing</h3>
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Project Amount</span>
-                <span className="text-gray-900 dark:text-white font-semibold">
+              <div className="flex justify-between">
+                <span className="font-semibold text-gray-900 dark:text-white">Total</span>
+                <span className="text-2xl font-bold text-primary">
                   ${proposal.amount.toLocaleString()}
                 </span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Platform Fee (10%)</span>
-                <span className="text-gray-600 dark:text-gray-400">
-                  ${proposal.platformFee.toLocaleString()}
-                </span>
-              </div>
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900 dark:text-white">Total</span>
-                  <span className="text-2xl font-bold text-primary">
-                    ${proposal.amount.toLocaleString()}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Held in escrow until work approved
-                </p>
-              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                Held in escrow until work approved
+              </p>
             </div>
           </Card>
 

@@ -6,7 +6,7 @@ import { supabase } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
-import { Job, JobStatus, JobPayment, JobPayout } from "../../types";
+import { Job, JobStatus, JobPayment, JobPayout, Milestone, MilestoneStatus } from "../../types";
 
 const STATUS_CONFIG: Record<
   JobStatus,
@@ -98,6 +98,25 @@ const STATUS_CONFIG: Record<
   },
 };
 
+// Milestone status badge component
+const MILESTONE_STATUS_CONFIG: Record<MilestoneStatus, { label: string; color: string; bgColor: string }> = {
+  pending: { label: "Pending", color: "text-gray-500", bgColor: "bg-gray-100" },
+  in_progress: { label: "In Progress", color: "text-blue-600", bgColor: "bg-blue-100" },
+  submitted: { label: "Submitted", color: "text-purple-600", bgColor: "bg-purple-100" },
+  revision: { label: "Revision", color: "text-amber-600", bgColor: "bg-amber-100" },
+  approved: { label: "Approved", color: "text-green-600", bgColor: "bg-green-100" },
+  paid: { label: "Paid", color: "text-emerald-600", bgColor: "bg-emerald-100" },
+};
+
+const MilestoneStatusBadge: React.FC<{ status: MilestoneStatus }> = ({ status }) => {
+  const config = MILESTONE_STATUS_CONFIG[status];
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${config.bgColor} ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
 export const ProjectDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -105,6 +124,7 @@ export const ProjectDetail: React.FC = () => {
   const { showToast } = useToast();
 
   const [job, setJob] = useState<Job | null>(null);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [payments, setPayments] = useState<JobPayment[]>([]);
   const [payouts, setPayouts] = useState<JobPayout[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,6 +133,7 @@ export const ProjectDetail: React.FC = () => {
   useEffect(() => {
     if (id && agency?.id) {
       loadJob();
+      loadMilestones();
     }
   }, [id, agency?.id]);
 
@@ -140,6 +161,8 @@ export const ProjectDetail: React.FC = () => {
           currency: data.currency,
           platformFee: parseFloat(data.platform_fee || 0),
           status: data.status as JobStatus,
+          hasMilestones: data.has_milestones || false,
+          totalReleased: parseFloat(data.total_released || 0),
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         });
@@ -152,6 +175,39 @@ export const ProjectDetail: React.FC = () => {
       showToast("Failed to load job details", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMilestones = async () => {
+    if (!id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("milestones")
+        .select("*")
+        .eq("job_id", id)
+        .order("order_index", { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        setMilestones(data.map((m: any) => ({
+          id: m.id,
+          jobId: m.job_id,
+          title: m.title,
+          description: m.description,
+          amount: parseFloat(m.amount),
+          currency: m.currency,
+          orderIndex: m.order_index,
+          status: m.status as MilestoneStatus,
+          stripeTransferId: m.stripe_transfer_id,
+          paidAt: m.paid_at,
+          createdAt: m.created_at,
+          updatedAt: m.updated_at,
+        })));
+      }
+    } catch (error) {
+      console.error("Error loading milestones:", error);
     }
   };
 
@@ -254,6 +310,79 @@ export const ProjectDetail: React.FC = () => {
     showToast("Work resubmitted for review!", "success");
   };
 
+  // Milestone handlers for agency
+  const handleStartMilestone = async (milestone: Milestone) => {
+    setActionLoading(`start-${milestone.id}`);
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .update({ status: "in_progress", updated_at: new Date().toISOString() })
+        .eq("id", milestone.id);
+
+      if (error) throw error;
+
+      // Also update job status to in_progress if needed
+      if (job?.status === "funded") {
+        await supabase
+          .from("jobs")
+          .update({ status: "in_progress", updated_at: new Date().toISOString() })
+          .eq("id", job.id);
+        setJob({ ...job, status: "in_progress" });
+      }
+
+      await loadMilestones();
+      showToast("Milestone started!", "success");
+    } catch (error) {
+      console.error("Error starting milestone:", error);
+      showToast("Failed to start milestone", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleSubmitMilestone = async (milestone: Milestone) => {
+    setActionLoading(`submit-${milestone.id}`);
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .update({ status: "submitted", updated_at: new Date().toISOString() })
+        .eq("id", milestone.id);
+
+      if (error) throw error;
+
+      await loadMilestones();
+      showToast("Milestone submitted for review!", "success");
+    } catch (error) {
+      console.error("Error submitting milestone:", error);
+      showToast("Failed to submit milestone", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleResubmitMilestone = async (milestone: Milestone) => {
+    setActionLoading(`resubmit-${milestone.id}`);
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .update({ status: "submitted", updated_at: new Date().toISOString() })
+        .eq("id", milestone.id);
+
+      if (error) throw error;
+
+      await loadMilestones();
+      showToast("Milestone resubmitted!", "success");
+    } catch (error) {
+      console.error("Error resubmitting milestone:", error);
+      showToast("Failed to resubmit milestone", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
@@ -279,7 +408,6 @@ export const ProjectDetail: React.FC = () => {
   }
 
   const statusConfig = STATUS_CONFIG[job.status];
-  const earnings = job.amount - job.platformFee;
 
   return (
     <div className="p-8 max-w-5xl mx-auto">
@@ -338,6 +466,133 @@ export const ProjectDetail: React.FC = () => {
               <p className="text-gray-400 italic">No description provided.</p>
             )}
           </Card>
+
+          {/* Milestones Section */}
+          {milestones.length > 0 && (
+            <Card>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Milestones
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  ({milestones.filter(m => m.status === "paid").length}/{milestones.length} completed)
+                </span>
+              </h2>
+
+              <div className="space-y-3">
+                {milestones.map((milestone, index) => {
+                  const canStart = milestone.status === "pending" && ["funded", "in_progress"].includes(job.status);
+                  const canSubmit = milestone.status === "in_progress";
+                  const canResubmit = milestone.status === "revision";
+                  const isLoading = actionLoading?.includes(milestone.id);
+
+                  return (
+                    <div
+                      key={milestone.id}
+                      className={`p-4 rounded-lg border ${
+                        milestone.status === "paid"
+                          ? "bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800"
+                          : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Index/Check */}
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            milestone.status === "paid"
+                              ? "bg-emerald-500 text-white"
+                              : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+                          }`}
+                        >
+                          {milestone.status === "paid" ? (
+                            <Icon name="check" className="text-sm" />
+                          ) : (
+                            <span className="text-sm font-medium">{index + 1}</span>
+                          )}
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-medium text-gray-900 dark:text-white truncate">
+                              {milestone.title}
+                            </h3>
+                            <MilestoneStatusBadge status={milestone.status} />
+                          </div>
+                          {milestone.description && (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                              {milestone.description}
+                            </p>
+                          )}
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                            ${milestone.amount.toLocaleString()}
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {canStart && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleStartMilestone(milestone)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? "..." : "Start"}
+                            </Button>
+                          )}
+                          {canSubmit && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleSubmitMilestone(milestone)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? "..." : "Submit"}
+                            </Button>
+                          )}
+                          {canResubmit && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleResubmitMilestone(milestone)}
+                              disabled={isLoading}
+                            >
+                              {isLoading ? "..." : "Resubmit"}
+                            </Button>
+                          )}
+                          {milestone.status === "submitted" && (
+                            <span className="text-xs text-purple-600 bg-purple-100 px-2 py-1 rounded">
+                              Awaiting approval
+                            </span>
+                          )}
+                          {milestone.status === "approved" && (
+                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                              Payment pending
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Progress bar */}
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-gray-500">Earned so far</span>
+                  <span className="font-medium text-emerald-600">
+                    ${(job.totalReleased || 0).toLocaleString()} of ${job.amount.toLocaleString()}
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 transition-all duration-300"
+                    style={{ width: `${((job.totalReleased || 0) / job.amount) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Actions */}
           <Card>
@@ -529,22 +784,11 @@ export const ProjectDetail: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Payment Summary
             </h2>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Job Amount</span>
-                <span className="font-medium">${job.amount.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Platform Fee (10%)</span>
-                <span className="text-red-500">-${job.platformFee.toLocaleString()}</span>
-              </div>
-              <hr className="border-gray-200 dark:border-gray-700" />
-              <div className="flex justify-between">
-                <span className="font-semibold text-gray-900 dark:text-white">Your Earnings</span>
-                <span className="font-bold text-green-600 text-lg">
-                  ${earnings.toLocaleString()}
-                </span>
-              </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Job Amount</span>
+              <span className="font-bold text-green-600 text-xl">
+                ${job.amount.toLocaleString()}
+              </span>
             </div>
           </Card>
 

@@ -54,19 +54,27 @@ export default function Proposals() {
       // Fetch active deals
       const { data, error } = await supabase
         .from("deals")
-        .select(
-          `
-          *,
-          user_profiles!deals_user_id_fkey (
-            company_name
-          )
-        `
-        )
+        .select("*")
         .eq("agency_id", agencyData.id)
         .in("status", ["new", "active", "review", "ongoing"])
         .order("created_at", { ascending: false });
 
       if (error) throw error;
+
+      // Fetch user profiles for business names
+      const userIds = [...new Set((data || []).map(d => d.user_id))];
+      let profilesMap = new Map<string, { company_name: string | null }>();
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("user_profiles")
+          .select("user_id, company_name")
+          .in("user_id", userIds);
+        
+        profilesMap = new Map(
+          (profilesData || []).map(p => [p.user_id, { company_name: p.company_name }])
+        );
+      }
 
       const mapped: DealWithBusiness[] = (data || []).map((d) => ({
         id: d.id,
@@ -76,8 +84,8 @@ export default function Proposals() {
         status: d.status,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
-        businessProfile: d.user_profiles ? {
-          companyName: d.user_profiles.company_name,
+        businessProfile: profilesMap.get(d.user_id) ? {
+          companyName: profilesMap.get(d.user_id)?.company_name || "Unknown Business",
         } : undefined,
       }));
 
@@ -181,11 +189,11 @@ export default function Proposals() {
 
   const getStatusBadge = (status: Proposal["status"]) => {
     const badges = {
-      draft: { label: "Draft", className: "bg-gray-500/20 text-gray-300" },
-      sent: { label: "Sent", className: "bg-blue-500/20 text-blue-300" },
-      accepted: { label: "Accepted", className: "bg-green-500/20 text-green-300" },
-      declined: { label: "Declined", className: "bg-red-500/20 text-red-300" },
-      converted: { label: "Converted", className: "bg-purple-500/20 text-purple-300" },
+      draft: { label: "Draft", className: "bg-gray-500/20 text-gray-800" },
+      sent: { label: "Sent", className: "bg-blue-500/20 text-blue-800" },
+      accepted: { label: "Accepted", className: "bg-green-500/20 text-green-800" },
+      declined: { label: "Declined", className: "bg-red-500/20 text-red-800" },
+      converted: { label: "Converted", className: "bg-purple-500/20 text-purple-800" },
     };
 
     const badge = badges[status];
@@ -353,9 +361,9 @@ export default function Proposals() {
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">You'll Earn</p>
+                    <p className="text-sm text-gray-500">Amount</p>
                     <p className="text-xl font-bold text-green-400">
-                      ${(proposal.amount - proposal.platformFee).toLocaleString()}
+                      ${proposal.amount.toLocaleString()}
                     </p>
                   </div>
                   {proposal.status === "draft" && (

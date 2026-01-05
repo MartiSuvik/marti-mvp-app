@@ -184,7 +184,6 @@ export const Projects: React.FC = () => {
         <div className="space-y-4">
           {filteredProjects.map((project) => {
             const statusConfig = STATUS_CONFIG[project.status];
-            const earnings = project.amount - project.platformFee;
 
             return (
               <Card key={project.id} hover>
@@ -207,12 +206,12 @@ export const Projects: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-6">
-                      {/* Earnings */}
+                      {/* Amount */}
                       <div className="text-right">
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          ${earnings.toLocaleString()}
+                          ${project.amount.toLocaleString()}
                         </p>
-                        <p className="text-xs text-gray-400">Your earnings</p>
+                        <p className="text-xs text-gray-400">Project amount</p>
                       </div>
 
                       {/* Status Badge */}

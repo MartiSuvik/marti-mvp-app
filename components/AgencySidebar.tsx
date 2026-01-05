@@ -125,12 +125,6 @@ export const AgencySidebar: React.FC = () => {
       {/* Support Section */}
       <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
         <div className="text-center mb-4">
-          <div className="relative inline-block">
-            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-primary/30 bg-gradient-to-br from-primary/20 to-pink-500/20 flex items-center justify-center">
-              <Icon name="support_agent" className="text-2xl text-primary" />
-            </div>
-            <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></span>
-          </div>
           <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2">
             We're here to help
           </p>

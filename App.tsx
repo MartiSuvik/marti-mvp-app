@@ -32,6 +32,7 @@ import { Dashboard as AgencyDashboard } from "./pages/agency/Dashboard";
 import { Matches as AgencyMatches } from "./pages/agency/Matches";
 import { Messages as AgencyMessages } from "./pages/agency/Messages";
 import AgencyProposals from "./pages/agency/Proposals";
+import AgencyProposalDetail from "./pages/agency/ProposalDetail";
 import CreateProposal from "./pages/agency/CreateProposal";
 import { Projects as AgencyProjects } from "./pages/agency/Projects";
 import { ProjectDetail as AgencyProjectDetail } from "./pages/agency/ProjectDetail";
@@ -340,6 +341,16 @@ const App: React.FC = () => {
                 <AgencyProtectedRoute>
                   <AgencyDashboardLayout>
                     <CreateProposal />
+                  </AgencyDashboardLayout>
+                </AgencyProtectedRoute>
+              }
+            />
+            <Route
+              path="/agency/proposals/:id"
+              element={
+                <AgencyProtectedRoute>
+                  <AgencyDashboardLayout>
+                    <AgencyProposalDetail />
                   </AgencyDashboardLayout>
                 </AgencyProtectedRoute>
               }

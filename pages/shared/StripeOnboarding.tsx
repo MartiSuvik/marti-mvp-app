@@ -189,6 +189,36 @@ export const StripeOnboarding: React.FC = () => {
     }
   };
 
+  const handleOpenStripeDashboard = async () => {
+    if (!agency?.id) {
+      showToast("Agency not found", "error");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Call edge function to create login link
+      const { data, error } = await supabase.functions.invoke('create-stripe-login-link', {
+        body: { agency_id: agency.id }
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        // Open the Express dashboard in new tab
+        window.open(data.url, "_blank");
+      } else {
+        showToast("Failed to get dashboard link", "error");
+      }
+    } catch (error: any) {
+      console.error("Error opening Stripe dashboard:", error);
+      showToast(error.message || "Failed to open Stripe dashboard", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderContent = () => {
     switch (status) {
       case "loading":
@@ -236,7 +266,7 @@ export const StripeOnboarding: React.FC = () => {
               <Button variant="outline" onClick={() => navigate("/agency/dashboard")}>
                 Back to Dashboard
               </Button>
-              <Button variant="primary" onClick={() => window.open("https://dashboard.stripe.com", "_blank")}>
+              <Button variant="primary" onClick={handleOpenStripeDashboard} disabled={loading}>
                 <Icon name="open_in_new" className="mr-2" />
                 Stripe Dashboard
               </Button>
@@ -425,7 +455,6 @@ export const StripeOnboarding: React.FC = () => {
             <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
               <li>• Clients fund jobs upfront, and funds are held securely by the platform</li>
               <li>• When you complete work and the client approves, funds are released to you</li>
-              <li>• ScalingAD takes a 10% platform fee on each transaction</li>
               <li>• You'll receive payouts directly to your connected bank account</li>
             </ul>
           </div>

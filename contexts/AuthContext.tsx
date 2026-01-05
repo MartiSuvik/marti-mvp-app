@@ -131,6 +131,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         verified: data.verified || false,
         ownerId: data.owner_id,
         contactEmail: data.contact_email,
+        stripeAccountId: data.stripe_account_id,
+        stripeOnboardingComplete: data.stripe_onboarding_complete || false,
+        stripePayoutsEnabled: data.stripe_payouts_enabled || false,
       };
 
       console.log("[Auth] Agency loaded:", mappedAgency.name);
@@ -183,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const profileData: Record<string, any> = {
         user_id: userId,
         user_type: "business", // New users are always businesses
+        name: userMetadata?.name || null, // Store user's name from signup
       };
 
       if (onboardingData) {

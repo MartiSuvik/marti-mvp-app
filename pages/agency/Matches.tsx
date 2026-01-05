@@ -108,14 +108,19 @@ export const Matches: React.FC = () => {
 
     // Get unique user IDs from deals
     const userIds = [...new Set(dealsData.map(d => d.user_id))];
+    console.log("Deal user IDs:", userIds);
 
-    // Fetch user profiles for these users
+    // Fetch user profiles for these users (including name field)
     const { data: profilesData, error: profilesError } = await supabase
       .from("user_profiles")
-      .select("id, user_id, company_name, product_description, ad_platforms, ad_spend, business_model")
+      .select("id, user_id, name, company_name, product_description, ad_platforms, ad_spend, business_model")
       .in("user_id", userIds);
 
-    if (profilesError) throw profilesError;
+    console.log("Profiles fetched:", profilesData);
+    if (profilesError) {
+      console.error("Profile fetch error:", profilesError);
+      throw profilesError;
+    }
 
     // Create a map of user_id -> profile
     const profilesMap = new Map(
@@ -125,6 +130,13 @@ export const Matches: React.FC = () => {
     // Map deals with business info
     const mapped: DealWithBusiness[] = dealsData.map((d: any) => {
       const profile = profilesMap.get(d.user_id);
+      
+      // Use company_name, fallback to user's name + "'s Business"
+      let displayName = profile?.company_name;
+      if (!displayName && profile?.name) {
+        displayName = `${profile.name}'s Business`;
+      }
+      
       return {
         id: d.id,
         userId: d.user_id,
@@ -135,7 +147,7 @@ export const Matches: React.FC = () => {
         updatedAt: d.updated_at,
         business: profile ? {
           id: profile.id,
-          companyName: profile.company_name || "Unnamed Business",
+          companyName: displayName || "Unnamed Business",
           productDescription: profile.product_description || "No description",
           adPlatforms: profile.ad_platforms || [],
           adSpend: profile.ad_spend || "Not specified",

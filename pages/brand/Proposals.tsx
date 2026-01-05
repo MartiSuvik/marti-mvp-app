@@ -104,11 +104,11 @@ export default function Proposals() {
 
   const getStatusBadge = (status: Proposal["status"]) => {
     const badges = {
-      draft: { label: "Draft", className: "bg-gray-500/20 text-gray-300" },
-      sent: { label: "Pending", className: "bg-blue-500/20 text-blue-300" },
-      accepted: { label: "Accepted", className: "bg-green-500/20 text-green-300" },
-      declined: { label: "Declined", className: "bg-red-500/20 text-red-300" },
-      converted: { label: "Converted", className: "bg-purple-500/20 text-purple-300" },
+      draft: { label: "Draft", className: "bg-gray-500/20 text-gray-800" },
+      sent: { label: "Pending", className: "bg-blue-500/20 text-blue-800" },
+      accepted: { label: "Accepted", className: "bg-green-500/20 text-green-800" },
+      declined: { label: "Declined", className: "bg-red-500/20 text-red-800" },
+      converted: { label: "Converted", className: "bg-purple-500/20 text-purple-800" },
     };
 
     const badge = badges[status];

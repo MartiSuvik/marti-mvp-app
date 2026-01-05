@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { supabase } from "../../lib/supabase";
-import { Job, Agency, JobStatus, JobPayment, JobPayout } from "../../types";
+import { Job, Agency, JobStatus, JobPayment, JobPayout, Milestone, MilestoneStatus } from "../../types";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
 import { AgencyLogo } from "../../components/AgencyLogo";
+import { Input } from "../../components/ui/Input";
 
 /**
  * JobDetail Page
@@ -101,21 +102,162 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: str
   },
 };
 
+// Milestone status configuration
+const MILESTONE_STATUS_CONFIG: Record<MilestoneStatus, { label: string; icon: string; color: string; bgColor: string }> = {
+  pending: { label: "Pending", icon: "schedule", color: "text-gray-500", bgColor: "bg-gray-100 dark:bg-gray-700" },
+  in_progress: { label: "In Progress", icon: "engineering", color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
+  submitted: { label: "Submitted", icon: "rate_review", color: "text-purple-500", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
+  revision: { label: "Revision", icon: "replay", color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
+  approved: { label: "Approved", icon: "thumb_up", color: "text-green-500", bgColor: "bg-green-100 dark:bg-green-900/30" },
+  paid: { label: "Paid", icon: "paid", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30" },
+};
+
+// Milestone Card Component
+interface MilestoneCardProps {
+  milestone: Milestone;
+  index: number;
+  jobStatus: JobStatus;
+  formatCurrency: (amount: number, currency?: string) => string;
+  onApprove: () => void;
+  onRelease: () => void;
+  onRequestRevision: () => void;
+  onDelete: () => void;
+  isLoading: boolean;
+}
+
+const MilestoneCard: React.FC<MilestoneCardProps> = ({
+  milestone,
+  index,
+  jobStatus,
+  formatCurrency,
+  onApprove,
+  onRelease,
+  onRequestRevision,
+  onDelete,
+  isLoading,
+}) => {
+  const statusConfig = MILESTONE_STATUS_CONFIG[milestone.status];
+  const canDelete = jobStatus === "unfunded" && milestone.status === "pending";
+  const canApprove = milestone.status === "submitted";
+  const canRelease = milestone.status === "approved";
+  const canRequestRevision = milestone.status === "submitted";
+
+  return (
+    <div className={`p-4 rounded-lg border ${milestone.status === "paid" ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800" : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"}`}>
+      <div className="flex items-start gap-3">
+        {/* Index/Check */}
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${milestone.status === "paid" ? "bg-green-500 text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400"}`}>
+          {milestone.status === "paid" ? (
+            <Icon name="check" className="text-sm" />
+          ) : (
+            <span className="text-sm font-medium">{index + 1}</span>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-medium text-gray-900 dark:text-white truncate">{milestone.title}</h3>
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${statusConfig.bgColor} ${statusConfig.color}`}>
+              <Icon name={statusConfig.icon} className="text-xs" />
+              {statusConfig.label}
+            </span>
+          </div>
+          {milestone.description && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{milestone.description}</p>
+          )}
+          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+            {formatCurrency(milestone.amount, milestone.currency)}
+          </p>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {canApprove && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={onApprove}
+              disabled={isLoading}
+            >
+              {isLoading ? <Icon name="hourglass_empty" className="animate-spin" /> : "Approve"}
+            </Button>
+          )}
+          {canRequestRevision && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRequestRevision}
+              disabled={isLoading}
+            >
+              Revision
+            </Button>
+          )}
+          {canRelease && (
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={onRelease}
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isLoading ? <Icon name="hourglass_empty" className="animate-spin" /> : "Release Payment"}
+            </Button>
+          )}
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <Icon name="delete" className="text-lg" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const JobDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { showToast } = useToast();
 
   const [job, setJob] = useState<(Job & { agency?: Agency }) | null>(null);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [payments, setPayments] = useState<JobPayment[]>([]);
   const [payouts, setPayouts] = useState<JobPayout[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Milestone creation state
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [newMilestone, setNewMilestone] = useState({ title: "", description: "", amount: "" });
+
+  // Handle payment redirect result
+  useEffect(() => {
+    const paymentStatus = searchParams.get("payment");
+    if (paymentStatus === "success") {
+      showToast("Payment successful! The job is now funded.", "success");
+      // Clear the query param
+      setSearchParams({});
+      // Reload job to get updated status
+      if (id && user) {
+        loadJob();
+        loadPayments();
+      }
+    } else if (paymentStatus === "cancelled") {
+      showToast("Payment was cancelled.", "info");
+      setSearchParams({});
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (id && user) {
       loadJob();
+      loadMilestones();
       loadPayments();
     }
   }, [id, user]);
@@ -145,6 +287,8 @@ export const JobDetail: React.FC = () => {
           currency: data.currency,
           platformFee: parseFloat(data.platform_fee || 0),
           status: data.status as JobStatus,
+          hasMilestones: data.has_milestones || false,
+          totalReleased: parseFloat(data.total_released || 0),
           createdAt: data.created_at,
           updatedAt: data.updated_at,
           agency: data.agencies ? {
@@ -165,6 +309,37 @@ export const JobDetail: React.FC = () => {
       showToast("Failed to load job details", "error");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadMilestones = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("milestones")
+        .select("*")
+        .eq("job_id", id)
+        .order("order_index", { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        setMilestones(data.map((m: any) => ({
+          id: m.id,
+          jobId: m.job_id,
+          title: m.title,
+          description: m.description,
+          amount: parseFloat(m.amount),
+          currency: m.currency,
+          orderIndex: m.order_index,
+          status: m.status as MilestoneStatus,
+          stripeTransferId: m.stripe_transfer_id,
+          paidAt: m.paid_at,
+          createdAt: m.created_at,
+          updatedAt: m.updated_at,
+        })));
+      }
+    } catch (error) {
+      console.error("Error loading milestones:", error);
     }
   };
 
@@ -238,28 +413,27 @@ export const JobDetail: React.FC = () => {
     setActionLoading("funded");
     
     try {
-      // Call Supabase Edge Function to create PaymentIntent
-      const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-        body: { job_id: job.id }
+      // Call Supabase Edge Function to create Stripe Invoice
+      const { data, error } = await supabase.functions.invoke('create-invoice-checkout', {
+        body: { 
+          job_id: job.id,
+        }
       });
       
       if (error) throw error;
       
-      if (data?.client_secret) {
-        // For now, we'll just update the status since Stripe Elements isn't set up yet
-        // In a full implementation, you'd show the Stripe payment form here
-        showToast(`Payment intent created! Amount: ${data.amount} ${data.currency}`, "success");
-        await updateJobStatus("funded");
-        await loadPayments();
+      if (data?.invoice_url) {
+        // Redirect to Stripe Invoice page for payment
+        window.location.href = data.invoice_url;
       } else {
-        throw new Error("No client secret returned");
+        throw new Error("No invoice URL returned");
       }
     } catch (error: any) {
-      console.error("Error funding job:", error);
-      showToast(error.message || "Failed to fund job", "error");
-    } finally {
+      console.error("Error creating invoice:", error);
+      showToast(error.message || "Failed to create invoice", "error");
       setActionLoading(null);
     }
+    // Note: Don't reset actionLoading here as we're redirecting
   };
 
   const handleApproveWork = async () => {
@@ -299,6 +473,149 @@ export const JobDetail: React.FC = () => {
     if (!confirmed) return;
 
     await updateJobStatus("cancelled");
+  };
+
+  // Milestone handlers
+  const handleAddMilestone = async () => {
+    if (!job || !newMilestone.title || !newMilestone.amount) {
+      showToast("Please enter milestone title and amount", "error");
+      return;
+    }
+
+    const amount = parseFloat(newMilestone.amount);
+    if (isNaN(amount) || amount <= 0) {
+      showToast("Please enter a valid amount", "error");
+      return;
+    }
+
+    // Check if total milestones exceed job amount
+    const currentTotal = milestones.reduce((sum, m) => sum + m.amount, 0);
+    if (currentTotal + amount > job.amount) {
+      showToast(`Milestone total cannot exceed job amount (${formatCurrency(job.amount)})`, "error");
+      return;
+    }
+
+    setActionLoading("add-milestone");
+
+    try {
+      const { error } = await supabase.from("milestones").insert({
+        job_id: job.id,
+        title: newMilestone.title,
+        description: newMilestone.description || null,
+        amount: amount,
+        currency: job.currency,
+        order_index: milestones.length,
+        status: "pending",
+      });
+
+      if (error) throw error;
+
+      // Mark job as having milestones
+      if (!job.hasMilestones) {
+        await supabase
+          .from("jobs")
+          .update({ has_milestones: true })
+          .eq("id", job.id);
+        setJob({ ...job, hasMilestones: true });
+      }
+
+      setNewMilestone({ title: "", description: "", amount: "" });
+      setShowAddMilestone(false);
+      await loadMilestones();
+      showToast("Milestone added!", "success");
+    } catch (error) {
+      console.error("Error adding milestone:", error);
+      showToast("Failed to add milestone", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDeleteMilestone = async (milestoneId: string) => {
+    if (!confirm("Delete this milestone?")) return;
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .delete()
+        .eq("id", milestoneId);
+
+      if (error) throw error;
+
+      await loadMilestones();
+      showToast("Milestone deleted", "success");
+    } catch (error) {
+      console.error("Error deleting milestone:", error);
+      showToast("Failed to delete milestone", "error");
+    }
+  };
+
+  const handleApproveMilestone = async (milestone: Milestone) => {
+    setActionLoading(`approve-${milestone.id}`);
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .update({ status: "approved", updated_at: new Date().toISOString() })
+        .eq("id", milestone.id);
+
+      if (error) throw error;
+
+      await loadMilestones();
+      showToast("Milestone approved! You can now release payment.", "success");
+    } catch (error) {
+      console.error("Error approving milestone:", error);
+      showToast("Failed to approve milestone", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReleaseMilestone = async (milestone: Milestone) => {
+    setActionLoading(`release-${milestone.id}`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("release-milestone", {
+        body: { milestone_id: milestone.id },
+      });
+
+      if (error) throw error;
+
+      await loadMilestones();
+      await loadPayments();
+      await loadJob();
+      
+      showToast(
+        `Payment of ${formatCurrency(milestone.amount)} released to agency!`,
+        "success"
+      );
+    } catch (error: any) {
+      console.error("Error releasing milestone:", error);
+      showToast(error.message || "Failed to release payment", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRequestMilestoneRevision = async (milestone: Milestone) => {
+    setActionLoading(`revision-${milestone.id}`);
+
+    try {
+      const { error } = await supabase
+        .from("milestones")
+        .update({ status: "revision", updated_at: new Date().toISOString() })
+        .eq("id", milestone.id);
+
+      if (error) throw error;
+
+      await loadMilestones();
+      showToast("Revision requested", "success");
+    } catch (error) {
+      console.error("Error requesting revision:", error);
+      showToast("Failed to request revision", "error");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const formatCurrency = (amount: number, currency: string = "USD") => {
@@ -348,7 +665,6 @@ export const JobDetail: React.FC = () => {
   }
 
   const statusConfig = STATUS_CONFIG[job.status];
-  const agencyPayout = job.amount - job.platformFee;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
@@ -414,6 +730,128 @@ export const JobDetail: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Description</h3>
                 <p className="text-gray-900 dark:text-white whitespace-pre-wrap">{job.description}</p>
+              </div>
+            )}
+          </Card>
+
+          {/* Milestones Section */}
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                Milestones
+                {milestones.length > 0 && (
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    ({milestones.filter(m => m.status === "paid").length}/{milestones.length} completed)
+                  </span>
+                )}
+              </h2>
+              {job.status === "unfunded" && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAddMilestone(true)}
+                >
+                  <Icon name="add" className="mr-1" />
+                  Add Milestone
+                </Button>
+              )}
+            </div>
+
+            {/* Add Milestone Form */}
+            {showAddMilestone && job.status === "unfunded" && (
+              <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="space-y-3">
+                  <Input
+                    label="Milestone Title"
+                    value={newMilestone.title}
+                    onChange={(e) => setNewMilestone({ ...newMilestone, title: e.target.value })}
+                    placeholder="e.g., Campaign Setup"
+                  />
+                  <Input
+                    label="Description (optional)"
+                    value={newMilestone.description}
+                    onChange={(e) => setNewMilestone({ ...newMilestone, description: e.target.value })}
+                    placeholder="What will be delivered"
+                  />
+                  <Input
+                    label={`Amount (${job.currency})`}
+                    type="number"
+                    value={newMilestone.amount}
+                    onChange={(e) => setNewMilestone({ ...newMilestone, amount: e.target.value })}
+                    placeholder="0.00"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleAddMilestone}
+                      disabled={actionLoading === "add-milestone"}
+                    >
+                      {actionLoading === "add-milestone" ? "Adding..." : "Add Milestone"}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddMilestone(false);
+                        setNewMilestone({ title: "", description: "", amount: "" });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Remaining: {formatCurrency(job.amount - milestones.reduce((sum, m) => sum + m.amount, 0))} of {formatCurrency(job.amount)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Milestones List */}
+            {milestones.length > 0 ? (
+              <div className="space-y-3">
+                {milestones.map((milestone, index) => (
+                  <MilestoneCard
+                    key={milestone.id}
+                    milestone={milestone}
+                    index={index}
+                    jobStatus={job.status}
+                    formatCurrency={formatCurrency}
+                    onApprove={() => handleApproveMilestone(milestone)}
+                    onRelease={() => handleReleaseMilestone(milestone)}
+                    onRequestRevision={() => handleRequestMilestoneRevision(milestone)}
+                    onDelete={() => handleDeleteMilestone(milestone.id)}
+                    isLoading={actionLoading?.includes(milestone.id) || false}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                <Icon name="flag" className="text-4xl mb-2 opacity-50" />
+                <p className="text-sm">No milestones defined</p>
+                {job.status === "unfunded" && (
+                  <p className="text-xs mt-1">
+                    Add milestones to split the payment into phases, or fund the full amount at once.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Milestone Summary */}
+            {milestones.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Total in milestones:</span>
+                  <span className="font-medium">{formatCurrency(milestones.reduce((sum, m) => sum + m.amount, 0))}</span>
+                </div>
+                {job.amount > milestones.reduce((sum, m) => sum + m.amount, 0) && (
+                  <div className="flex justify-between text-sm mt-1">
+                    <span className="text-orange-500">Unallocated:</span>
+                    <span className="text-orange-500 font-medium">
+                      {formatCurrency(job.amount - milestones.reduce((sum, m) => sum + m.amount, 0))}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </Card>
@@ -527,25 +965,41 @@ export const JobDetail: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Payment Summary</h2>
             <div className="space-y-3">
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Job Amount</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
+                <span className="text-gray-500 dark:text-gray-400">Job Total</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white">
                   {formatCurrency(job.amount, job.currency)}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-gray-400">Platform Fee (10%)</span>
-                <span className="text-gray-600 dark:text-gray-300">
-                  -{formatCurrency(job.platformFee, job.currency)}
-                </span>
-              </div>
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                <div className="flex justify-between">
-                  <span className="font-medium text-gray-900 dark:text-white">Agency Receives</span>
-                  <span className="font-bold text-green-600">
-                    {formatCurrency(agencyPayout, job.currency)}
-                  </span>
-                </div>
-              </div>
+              
+              {milestones.length > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Released</span>
+                    <span className="text-green-600 font-medium">
+                      {formatCurrency(job.totalReleased || 0, job.currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500 dark:text-gray-400">Remaining</span>
+                    <span className="text-orange-500 font-medium">
+                      {formatCurrency(job.amount - (job.totalReleased || 0), job.currency)}
+                    </span>
+                  </div>
+                  
+                  {/* Progress bar */}
+                  <div className="mt-2">
+                    <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 transition-all duration-300"
+                        style={{ width: `${((job.totalReleased || 0) / job.amount) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1 text-center">
+                      {Math.round(((job.totalReleased || 0) / job.amount) * 100)}% released
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </Card>
 

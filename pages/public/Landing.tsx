@@ -366,10 +366,10 @@ export const Landing: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                    10% Commission
+                    No Hidden Fees
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Only on new revenue generated. You keep 90%.
+                    Transparent pricing with no platform commissions.
                   </p>
                 </div>
                 <div>

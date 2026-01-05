@@ -168,9 +168,9 @@ export const ForAgencies: React.FC = () => {
           </div>
           <div className="max-w-md mx-auto">
             <div className="bg-indigo-600 rounded-2xl p-8 shadow-xl text-center">
-              <div className="text-5xl font-bold text-white mb-2">10%</div>
+              <div className="text-5xl font-bold text-white mb-2">Free</div>
               <div className="text-white/80 mb-6">
-                Commission on closed deals
+                No platform fees
               </div>
               <ul className="text-left space-y-3 mb-8">
                 {[

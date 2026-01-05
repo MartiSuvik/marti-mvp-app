@@ -44,6 +44,10 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (agency?.id) {
+      console.log("Agency object:", agency);
+      console.log("stripeOnboardingComplete:", agency?.stripeOnboardingComplete);
+      console.log("stripePayoutsEnabled:", agency?.stripePayoutsEnabled);
+      console.log("stripeAccountId:", agency?.stripeAccountId);
       loadDashboardData();
     }
   }, [agency?.id]);
@@ -74,14 +78,14 @@ export const Dashboard: React.FC = () => {
         // Calculate earnings (from paid_out jobs)
         const paidJobs = jobs.filter((j) => j.status === "paid_out");
         const totalEarnings = paidJobs.reduce(
-          (sum, j) => sum + (parseFloat(j.amount) - parseFloat(j.platform_fee || 0)),
+          (sum, j) => sum + parseFloat(j.amount),
           0
         );
 
         // Pending payouts (approved but not yet paid)
         const approvedJobs = jobs.filter((j) => j.status === "approved");
         const pendingPayouts = approvedJobs.reduce(
-          (sum, j) => sum + (parseFloat(j.amount) - parseFloat(j.platform_fee || 0)),
+          (sum, j) => sum + parseFloat(j.amount),
           0
         );
 
@@ -201,7 +205,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Stripe Connect Status */}
-      {!agency?.stripeAccountId && (
+      {!agency?.stripeOnboardingComplete && (
         <Card className="mb-8 border-l-4 border-l-yellow-500">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -275,9 +279,9 @@ export const Dashboard: React.FC = () => {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="font-semibold text-gray-900 dark:text-white">
-                            ${(job.amount - job.platformFee).toLocaleString()}
+                            ${job.amount.toLocaleString()}
                           </p>
-                          <p className="text-xs text-gray-400">Your earnings</p>
+                          <p className="text-xs text-gray-400">Amount</p>
                         </div>
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${statusConfig.color} ${statusConfig.bgColor}`}

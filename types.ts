@@ -162,15 +162,43 @@ export interface Job {
   currency: string;
   platformFee: number;
   status: JobStatus;
+  // Milestone support
+  hasMilestones: boolean;
+  totalReleased: number;
   createdAt: string;
   updatedAt: string;
   // Joined data
   agency?: Agency;
   deal?: Deal;
   proposal?: Proposal;
+  milestones?: Milestone[];
 }
 
-// Job milestone for phased payments (future)
+// Job milestone for phased payments
+export type MilestoneStatus = 
+  | "pending"      // Not started yet
+  | "in_progress"  // Agency working on it
+  | "submitted"    // Agency submitted for review
+  | "approved"     // Business approved, ready for payment
+  | "paid"         // Payment transferred to agency
+  | "revision";    // Business requested changes
+
+export interface Milestone {
+  id: string;
+  jobId: string;
+  title: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  orderIndex: number;
+  status: MilestoneStatus;
+  stripeTransferId?: string;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Legacy interface - kept for backwards compatibility
 export interface JobMilestone {
   id: string;
   jobId: string;

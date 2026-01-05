@@ -33,10 +33,8 @@ serve(async (req) => {
       });
     }
 
-    // Create Supabase client with user's JWT
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Create Supabase client with service role (bypasses RLS for updates)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get request body
     const { agency_id, return_url, refresh_url, country } = await req.json();
@@ -97,6 +95,7 @@ serve(async (req) => {
 
       if (updateError) {
         console.error("Error updating agency:", updateError);
+        throw new Error(`Failed to save Stripe account ID: ${updateError.message}`);
       }
     }
 

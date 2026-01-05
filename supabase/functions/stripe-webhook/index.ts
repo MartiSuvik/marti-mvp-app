@@ -1,5 +1,5 @@
 // Supabase Edge Function: stripe-webhook
-// Handles incoming Stripe webhook events for Connect payments
+// Handles incoming Stripe webhook events for Connect payments and Platform invoices
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -17,6 +17,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+// Helper function to verify webhook with multiple secrets
+function verifyWebhookSignature(body: string, signature: string): Stripe.Event | null {
+  // Try Connect webhook secret first (for account.* and transfer.* events)
+  const connectSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
+  // Try Platform webhook secret second (for invoice.* events)
+  const platformSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET_PLATFORM") || "";
+  
+  const secrets = [connectSecret, platformSecret].filter(Boolean);
+  
+  for (const secret of secrets) {
+    try {
+      return stripe.webhooks.constructEvent(body, signature, secret);
+    } catch (err) {
+      // Try next secret
+      continue;
+    }
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
@@ -26,20 +47,18 @@ serve(async (req) => {
   try {
     const signature = req.headers.get("stripe-signature");
     const body = await req.text();
-    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
 
-    if (!signature || !webhookSecret) {
-      console.error("Missing signature or webhook secret");
+    if (!signature) {
+      console.error("Missing signature");
       return new Response("Missing signature", { status: 400 });
     }
 
-    // Verify the webhook signature
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err) {
-      console.error("Webhook signature verification failed:", err);
-      return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    // Verify the webhook signature with both secrets
+    const event = verifyWebhookSignature(body, signature);
+    
+    if (!event) {
+      console.error("Webhook signature verification failed with all secrets");
+      return new Response("Webhook signature verification failed", { status: 400 });
     }
 
     // Create Supabase client with service role for admin access
@@ -49,6 +68,13 @@ serve(async (req) => {
 
     // Handle different event types
     switch (event.type) {
+      // Checkout Session completed
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        await handleCheckoutSessionCompleted(supabase, session);
+        break;
+      }
+
       // Payment Intent events
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
@@ -95,6 +121,25 @@ serve(async (req) => {
         break;
       }
 
+      // Invoice events (for Stripe Invoicing)
+      case "invoice.paid": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaid(supabase, invoice);
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaymentFailed(supabase, invoice);
+        break;
+      }
+
+      case "invoice.voided": {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoiceVoided(supabase, invoice);
+        break;
+      }
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -116,6 +161,40 @@ serve(async (req) => {
 });
 
 // Handler functions
+
+async function handleCheckoutSessionCompleted(supabase: any, session: Stripe.Checkout.Session) {
+  const jobId = session.metadata?.job_id;
+  if (!jobId) {
+    console.log("No job_id in checkout session metadata");
+    return;
+  }
+
+  // If payment was successful, update the job status
+  if (session.payment_status === "paid") {
+    // Update job_payments record with payment intent ID
+    if (session.payment_intent) {
+      await supabase
+        .from("job_payments")
+        .update({
+          status: "succeeded",
+          stripe_payment_intent_id: session.payment_intent as string,
+        })
+        .eq("job_id", jobId);
+    }
+
+    // Update job status to funded
+    await supabase
+      .from("jobs")
+      .update({
+        status: "funded",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", jobId)
+      .eq("status", "unfunded"); // Only update if still unfunded
+
+    console.log(`Checkout completed for job ${jobId}`);
+  }
+}
 
 async function handlePaymentIntentSucceeded(supabase: any, paymentIntent: Stripe.PaymentIntent) {
   const jobId = paymentIntent.metadata?.job_id;
@@ -253,6 +332,139 @@ async function handleChargeRefunded(supabase: any, charge: Stripe.Charge) {
       .eq("id", payment.job_id);
 
     console.log(`Charge refunded for job ${payment.job_id}`);
+  }
+}
+
+// Invoice event handlers for Stripe Invoicing
+
+async function handleInvoicePaid(supabase: any, invoice: Stripe.Invoice) {
+  const jobId = invoice.metadata?.job_id;
+  
+  // Try to find job by invoice ID if not in metadata
+  let actualJobId = jobId;
+  if (!actualJobId) {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("stripe_invoice_id", invoice.id)
+      .single();
+    actualJobId = job?.id;
+  }
+
+  if (!actualJobId) {
+    console.log("No job found for invoice:", invoice.id);
+    return;
+  }
+
+  // Update job_payments record with payment intent
+  if (invoice.payment_intent) {
+    await supabase
+      .from("job_payments")
+      .update({
+        status: "succeeded",
+        stripe_payment_intent_id: invoice.payment_intent as string,
+      })
+      .eq("job_id", actualJobId);
+  }
+
+  // Update job status to funded
+  await supabase
+    .from("jobs")
+    .update({
+      status: "funded",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", actualJobId)
+    .eq("status", "unfunded"); // Only update if still unfunded
+
+  // Log to ledger
+  await supabase.from("ledger_entries").insert({
+    job_id: actualJobId,
+    event_type: "invoice_paid",
+    details: {
+      invoice_id: invoice.id,
+      invoice_number: invoice.number,
+      amount_paid: invoice.amount_paid,
+      currency: invoice.currency,
+      payment_intent: invoice.payment_intent,
+      customer_id: invoice.customer,
+    },
+  });
+
+  console.log(`Invoice ${invoice.id} paid for job ${actualJobId}. Amount: ${invoice.amount_paid / 100} ${invoice.currency?.toUpperCase()}`);
+}
+
+async function handleInvoicePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
+  const jobId = invoice.metadata?.job_id;
+  
+  // Try to find job by invoice ID
+  let actualJobId = jobId;
+  if (!actualJobId) {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("stripe_invoice_id", invoice.id)
+      .single();
+    actualJobId = job?.id;
+  }
+
+  if (!actualJobId) {
+    console.log("No job found for failed invoice:", invoice.id);
+    return;
+  }
+
+  // Update job_payments record
+  await supabase
+    .from("job_payments")
+    .update({ status: "failed" })
+    .eq("job_id", actualJobId);
+
+  // Log to ledger
+  await supabase.from("ledger_entries").insert({
+    job_id: actualJobId,
+    event_type: "invoice_payment_failed",
+    details: {
+      invoice_id: invoice.id,
+      invoice_number: invoice.number,
+      attempt_count: invoice.attempt_count,
+      next_payment_attempt: invoice.next_payment_attempt,
+    },
+  });
+
+  console.log(`Invoice payment failed for job ${actualJobId}`);
+}
+
+async function handleInvoiceVoided(supabase: any, invoice: Stripe.Invoice) {
+  const jobId = invoice.metadata?.job_id;
+  
+  let actualJobId = jobId;
+  if (!actualJobId) {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("id")
+      .eq("stripe_invoice_id", invoice.id)
+      .single();
+    actualJobId = job?.id;
+  }
+
+  if (actualJobId) {
+    // Update job_payments
+    await supabase
+      .from("job_payments")
+      .update({ status: "cancelled" })
+      .eq("job_id", actualJobId);
+
+    // Log to ledger
+    await supabase.from("ledger_entries").insert({
+      job_id: actualJobId,
+      event_type: "invoice_voided",
+      details: {
+        invoice_id: invoice.id,
+        invoice_number: invoice.number,
+      },
+    });
+
+    console.log(`Invoice voided for job ${actualJobId}`);
   }
 }
 

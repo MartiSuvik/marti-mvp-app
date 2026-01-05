@@ -226,31 +226,7 @@ export default function CreateProposal() {
               <p className="mt-1 text-sm text-red-500">{errors.amount}</p>
             )}
 
-            {/* Fee breakdown */}
-            {formData.amount && parseFloat(formData.amount) > 0 && (
-              <div className="mt-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Project Amount</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    ${parseFloat(formData.amount).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-600 dark:text-gray-400">Platform Fee (10%)</span>
-                  <span className="font-medium text-red-600 dark:text-red-400">
-                    -${(parseFloat(formData.amount) * 0.1).toLocaleString()}
-                  </span>
-                </div>
-                <div className="border-t border-gray-300 dark:border-gray-600 pt-2 mt-2">
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-gray-900 dark:text-white">You'll Receive</span>
-                    <span className="text-green-600 dark:text-green-400 text-lg">
-                      ${(parseFloat(formData.amount) * 0.9).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Info box */}

@@ -1,6 +1,5 @@
-// Supabase Edge Function: verify-stripe-account
-// Verifies Stripe Connect account status and updates database
-// Called after agency completes Stripe onboarding to immediately sync status
+// Supabase Edge Function: create-stripe-login-link
+// Creates a login link for an Express Connect account to access their dashboard
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -25,7 +24,7 @@ serve(async (req) => {
   }
 
   try {
-    // Get the authorization header (for logging, not needed for service role)
+    // Get the authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -34,7 +33,7 @@ serve(async (req) => {
       });
     }
 
-    // Create Supabase client with service role (bypasses RLS)
+    // Create Supabase client with service role
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get request body
@@ -50,56 +49,24 @@ serve(async (req) => {
     // Get agency's Stripe account ID
     const { data: agency, error: agencyError } = await supabase
       .from("agencies")
-      .select("id, stripe_account_id")
+      .select("stripe_account_id")
       .eq("id", agency_id)
       .single();
 
-    if (agencyError || !agency) {
-      return new Response(JSON.stringify({ error: "Agency not found" }), {
+    if (agencyError || !agency || !agency.stripe_account_id) {
+      return new Response(JSON.stringify({ error: "Agency or Stripe account not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!agency.stripe_account_id) {
-      return new Response(JSON.stringify({ error: "No Stripe account ID found" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Fetch account status from Stripe API
-    const account = await stripe.accounts.retrieve(agency.stripe_account_id);
-
-    // Check account capabilities and details
-    const detailsSubmitted = account.details_submitted || false;
-    const payoutsEnabled = account.payouts_enabled || false;
-    const chargesEnabled = account.charges_enabled || false;
-
-    // Update database with latest status
-    const { error: updateError } = await supabase
-      .from("agencies")
-      .update({
-        stripe_onboarding_complete: detailsSubmitted,
-        stripe_payouts_enabled: payoutsEnabled && chargesEnabled,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", agency_id);
-
-    if (updateError) {
-      console.error("Error updating agency:", updateError);
-      throw new Error("Failed to update agency status");
-    }
+    // Create login link for Express dashboard
+    const loginLink = await stripe.accounts.createLoginLink(agency.stripe_account_id);
 
     return new Response(
       JSON.stringify({
         success: true,
-        stripe_account_id: agency.stripe_account_id,
-        details_submitted: detailsSubmitted,
-        payouts_enabled: payoutsEnabled,
-        charges_enabled: chargesEnabled,
-        onboarding_complete: detailsSubmitted,
-        ready_for_payouts: payoutsEnabled && chargesEnabled,
+        url: loginLink.url,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -107,7 +74,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("Error verifying Stripe account:", error);
+    console.error("Error creating login link:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
