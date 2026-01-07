@@ -110,51 +110,46 @@ export const Landing: React.FC = () => {
         <div className="text-center">
           {/* Headline - Single powerful line */}
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight tracking-tight">
-            Find your perfect agency match
+            Find your perfect <br></br>agency match
           </h1>
           
           {/* Single CTA button */}
           <button
             onClick={() => navigate("/onboarding")}
-            className="inline-flex items-center px-6 py-3 text-base font-semibold text-white bg-primary hover:bg-primary/90 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200"
+            className="inline-flex items-center px-9 py-5 text-xl font-semibold text-white bg-primary hover:bg-primary/90 rounded-full shadow-xl hover:shadow-2xl transition-all duration-200"
           >
             Get Started Free
           </button>
-
-          {/* Trust badge - Simple text */}
-          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            Trusted by 100's of companies
-          </p>
         </div>
       </section>
 
-      {/* Logo Carousel - Full width, larger icons */}
+      {/* Trusted Partners - Logo Carousel */}
       <div className="relative w-full overflow-hidden py-6">
         <div className="flex animate-scroll">
-          {[...Array(2)].map((_, setIndex) => (
+          {[...Array(3)].map((_, setIndex) => (
             <div
               key={setIndex}
-              className="flex gap-6 items-center flex-shrink-0 px-3"
+              className="flex gap-12 items-center flex-shrink-0 px-6"
             >
               {[
-                { icon: "😺", bg: "bg-gradient-to-br from-cyan-300 to-cyan-500" },
-                { icon: "📍", bg: "bg-gradient-to-br from-pink-400 to-rose-500" },
-                { icon: "💲", bg: "bg-gradient-to-br from-blue-500 to-blue-600" },
-                { icon: "🚀", bg: "bg-gradient-to-br from-blue-400 to-indigo-500" },
-                { icon: "📐", bg: "bg-gradient-to-br from-indigo-300 to-indigo-500" },
-                { icon: "💎", bg: "bg-gradient-to-br from-pink-300 to-pink-400" },
-                { icon: "📊", bg: "bg-gradient-to-br from-slate-700 to-slate-900" },
-                { icon: "🍓", bg: "bg-gradient-to-br from-red-400 to-red-500" },
-                { icon: "🎯", bg: "bg-gradient-to-br from-orange-400 to-red-500" },
-                { icon: "⚡", bg: "bg-gradient-to-br from-yellow-400 to-amber-500" },
-                { icon: "🔮", bg: "bg-gradient-to-br from-violet-400 to-purple-600" },
-                { icon: "🌿", bg: "bg-gradient-to-br from-emerald-400 to-green-500" },
-              ].map((item, index) => (
+                { src: "/assets/brands/Make.svg", alt: "Make" },
+                { src: "/assets/brands/Mixpanel.svg", alt: "Mixpanel" },
+                { src: "/assets/brands/Netlify.svg", alt: "Netlify" },
+                { src: "/assets/brands/SendGrid.svg", alt: "SendGrid" },
+                { src: "/assets/brands/Stripe.svg", alt: "Stripe" },
+                { src: "/assets/brands/Supabase.svg", alt: "Supabase" },
+                { src: "/assets/brands/Vercel.svg", alt: "Vercel" },
+                { src: "/assets/brands/Zoom.svg", alt: "Zoom" },
+              ].map((brand, index) => (
                 <div
                   key={`${setIndex}-${index}`}
-                  className={`w-16 h-16 md:w-20 md:h-20 ${item.bg} rounded-2xl flex items-center justify-center shadow-lg hover:scale-105 hover:-translate-y-1 transition-all duration-200 cursor-pointer`}
+                  className="flex items-center justify-center h-12 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-300"
                 >
-                  <span className="text-3xl md:text-4xl">{item.icon}</span>
+                  <img 
+                    src={brand.src} 
+                    alt={brand.alt} 
+                    className="h-8 md:h-10 w-auto object-contain"
+                  />
                 </div>
               ))}
             </div>
@@ -162,38 +157,100 @@ export const Landing: React.FC = () => {
         </div>
       </div>
 
-      {/* Benefits Section */}
+            {/* Testimonials Section */}
+      <section className="relative py-12 md:py-14 bg-gray-50/50 dark:bg-gray-800/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
+              Success Stories
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                quote:
+                  "Found the perfect agency in 2 days 🎯 Our ROAS went from 1.8x to 4.2x in just 3 months. Wish I found this sooner!",
+                name: "Sarah M.",
+                role: "E-commerce",
+                emoji: "",
+              },
+              {
+                quote:
+                  "Finally an agency that gets B2B 🙌 180% more qualified leads and our CAC dropped by 35%. The matching actually works.",
+                name: "James D.",
+                role: "SaaS Founder",
+                emoji: "",
+              },
+              {
+                quote:
+                  "Scaled from $15k to $85k/month ad spend with confidence 📈 The escrow system made it risk-free to try new agencies.",
+                name: "Maria R.",
+                role: "DTC Brand",
+                emoji: "",
+              },
+            ].map((testimonial, index) => (
+              <div
+                key={index}
+                className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <div className="text-3xl mb-3">{testimonial.emoji}</div>
+                <p className="text-gray-700 dark:text-gray-300 mb-4 text-sm leading-relaxed">
+                  "{testimonial.quote}"
+                </p>
+                <div className="text-sm">
+                  <span className="font-medium text-gray-900 dark:text-white">{testimonial.name}</span>
+                  <span className="text-gray-500 dark:text-gray-400"> {testimonial.role}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      
+      {/* Benefits Section
       <section className="relative py-12 md:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-              BENEFITS
-            </p>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
-              Why Choose AgencyMatch
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white tracking-tight">
+              Benefits to Scaling with ScalingAD
             </h2>
           </div>
           <div className="flex flex-col md:flex-row justify-center items-center gap-6">
             <div className="bg-white dark:bg-gray-800 rounded-2xl px-8 py-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 text-center animate-fade-in" style={{ animationDelay: '0ms' }}>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Only pay for results ✅
-              </h3>
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center animate-pulse">
+                  <Icon name="person_off" className="text-primary text-xl" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Extra Hires
+                </h3>
+              </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl px-8 py-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 text-center animate-fade-in" style={{ animationDelay: '150ms' }}>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Skip the research 🕘
-              </h3>
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center animate-pulse" style={{ animationDelay: '0.5s' }}>
+                  <Icon name="search_off" className="text-primary text-xl" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Research
+                </h3>
+              </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-2xl px-8 py-6 border border-gray-100 dark:border-gray-700 hover:shadow-lg transition-all duration-300 text-center animate-fade-in" style={{ animationDelay: '300ms' }}>
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Find the right fit 🎯
-              </h3>
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center animate-pulse" style={{ animationDelay: '1s' }}>
+                  <Icon name="apps" className="text-primary text-xl" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  10+ Apps
+                </h3>
+              </div>
             </div>
           </div>
 
-          {/* Video Demo Section 
+          Video Demo Section 
           <div className="mt-10 max-w-4xl mx-auto">
             <div className="relative aspect-video bg-gray-900 rounded-2xl overflow-hidden shadow-2xl group cursor-pointer">
               {/* Video Placeholder
@@ -216,9 +273,9 @@ export const Landing: React.FC = () => {
                 <source src="/assets/demo-video.mp4" type="video/mp4" />
               </video>
             </div>
-          </div>*/}
+          </div>
         </div>
-      </section>
+      </section>*/}
 
       {/* How It Works - Step 1 - Clean Posted-style */}
       <section className="relative py-12 md:py-14 bg-gray-50/50 dark:bg-gray-800/30">
@@ -230,7 +287,7 @@ export const Landing: React.FC = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-10 items-center">
-            <div className="space-y-5">
+            <div className="space-y-5 flex flex-col items-center justify-center text-center">
               <h3 className="text-3xl font-semibold text-gray-900 dark:text-white">
                 Complete Quick Onboarding
               </h3>
@@ -244,31 +301,12 @@ export const Landing: React.FC = () => {
                 Get Started Free
               </button>
             </div>
-            <div className="bg-primary rounded-2xl p-8 shadow-xl">
-              <div className="space-y-6">
-                {[
-                  { num: 1, text: "Current Ad Operations" },
-                  { num: 2, text: "Monthly Ad Spend" },
-                  { num: 3, text: "Performance & Objectives" },
-                  { num: 4, text: "Industry & Growth Intent" },
-                  { num: 5, text: "Review & Get Matched" },
-                ].map((step, index) => (
-                  <div key={index} className="flex items-center gap-4 group">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-white text-primary rounded-full flex items-center justify-center text-base font-bold shadow-md group-hover:scale-105 transition-all duration-300">
-                        {step.num}
-                      </div>
-                      {/* Connecting line to next step */}
-                      {index < 4 && (
-                        <div className="absolute left-1/2 top-full w-0.5 h-6 -translate-x-1/2 bg-white/50"></div>
-                      )}
-                    </div>
-                    <span className="text-white font-medium text-base">
-                      {step.text}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center justify-center">
+              <img 
+                src="/assets/2.svg" 
+                alt="Onboarding steps" 
+                className="w-full max-w-xl"
+              />
             </div>
           </div>
         </div>
@@ -278,31 +316,14 @@ export const Landing: React.FC = () => {
       <section className="relative py-12 md:py-14">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-10 items-center">
-            <div className="bg-primary rounded-2xl p-8 shadow-xl order-2 md:order-1">
-              <div className="space-y-6">
-                {[
-                  { num: 1, text: "View your top 3 matches" },
-                  { num: 2, text: "Browse all agencies" },
-                  { num: 3, text: "Schedule calls directly" },
-                ].map((step, index) => (
-                  <div key={index} className="flex items-center gap-4 group">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-white text-primary rounded-full flex items-center justify-center text-base font-bold shadow-md group-hover:scale-105 transition-all duration-300">
-                        {step.num}
-                      </div>
-                      {/* Connecting line to next step */}
-                      {index < 2 && (
-                        <div className="absolute left-1/2 top-full w-0.5 h-6 -translate-x-1/2 bg-white/50"></div>
-                      )}
-                    </div>
-                    <span className="text-white font-medium text-base">
-                      {step.text}
-                    </span>
-                  </div>
-                ))}
-              </div>
+            <div className="flex items-center justify-center order-2 md:order-1">
+              <img 
+                src="/assets/3.svg" 
+                alt="Review matches steps" 
+                className="w-full max-w-xl"
+              />
             </div>
-            <div className="space-y-4 order-1 md:order-2">
+            <div className="space-y-4 order-1 md:order-2 flex flex-col items-center justify-center text-center">
               <h3 className="text-3xl font-semibold text-gray-900 dark:text-white">
                 Review Your Matches
               </h3>
@@ -382,56 +403,6 @@ export const Landing: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="relative py-12 md:py-14 bg-gray-50/50 dark:bg-gray-800/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white tracking-tight">
-              Success Stories
-            </h2>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                quote:
-                  "Found the perfect agency in 2 days 🎯 Our ROAS went from 1.8x to 4.2x in just 3 months. Wish I found this sooner!",
-                name: "Sarah M.",
-                role: "E-commerce",
-                emoji: "🚀",
-              },
-              {
-                quote:
-                  "Finally an agency that gets B2B 🙌 180% more qualified leads and our CAC dropped by 35%. The matching actually works.",
-                name: "James D.",
-                role: "SaaS Founder",
-                emoji: "💡",
-              },
-              {
-                quote:
-                  "Scaled from $15k to $85k/month ad spend with confidence 📈 The escrow system made it risk-free to try new agencies.",
-                name: "Maria R.",
-                role: "DTC Brand",
-                emoji: "✨",
-              },
-            ].map((testimonial, index) => (
-              <div
-                key={index}
-                className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700"
-              >
-                <div className="text-3xl mb-3">{testimonial.emoji}</div>
-                <p className="text-gray-700 dark:text-gray-300 mb-4 text-sm leading-relaxed">
-                  "{testimonial.quote}"
-                </p>
-                <div className="text-sm">
-                  <span className="font-medium text-gray-900 dark:text-white">{testimonial.name}</span>
-                  <span className="text-gray-500 dark:text-gray-400"> · {testimonial.role}</span>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>

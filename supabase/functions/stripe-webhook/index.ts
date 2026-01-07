@@ -17,20 +17,19 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
-// Helper function to verify webhook with multiple secrets
-function verifyWebhookSignature(body: string, signature: string): Stripe.Event | null {
-  // Try Connect webhook secret first (for account.* and transfer.* events)
+// Helper function to verify webhook with multiple secrets (async for Deno)
+async function verifyWebhookSignature(body: string, signature: string): Promise<Stripe.Event | null> {
   const connectSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
-  // Try Platform webhook secret second (for invoice.* events)
   const platformSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET_PLATFORM") || "";
   
   const secrets = [connectSecret, platformSecret].filter(Boolean);
   
   for (const secret of secrets) {
     try {
-      return stripe.webhooks.constructEvent(body, signature, secret);
-    } catch (err) {
-      // Try next secret
+      // Use async version for Deno/Supabase Edge Functions
+      const event = await stripe.webhooks.constructEventAsync(body, signature, secret);
+      return event;
+    } catch {
       continue;
     }
   }
@@ -54,10 +53,10 @@ serve(async (req) => {
     }
 
     // Verify the webhook signature with both secrets
-    const event = verifyWebhookSignature(body, signature);
+    const event = await verifyWebhookSignature(body, signature);
     
     if (!event) {
-      console.error("Webhook signature verification failed with all secrets");
+      console.error("Webhook signature verification failed");
       return new Response("Webhook signature verification failed", { status: 400 });
     }
 
@@ -356,13 +355,44 @@ async function handleInvoicePaid(supabase: any, invoice: Stripe.Invoice) {
     return;
   }
 
-  // Update job_payments record with payment intent
-  if (invoice.payment_intent) {
+  // Get charge ID reliably - invoice.charge can be null, need to fetch from payment intent
+  let chargeId: string | null = null;
+  
+  if (invoice.charge) {
+    chargeId = typeof invoice.charge === 'string' ? invoice.charge : invoice.charge.id;
+  } else if (invoice.payment_intent) {
+    // Fetch payment intent to get the charge
+    try {
+      const piId = typeof invoice.payment_intent === 'string' 
+        ? invoice.payment_intent 
+        : invoice.payment_intent.id;
+      
+      const paymentIntent = await stripe.paymentIntents.retrieve(piId, {
+        expand: ['latest_charge']
+      });
+      
+      if (paymentIntent.latest_charge) {
+        chargeId = typeof paymentIntent.latest_charge === 'string'
+          ? paymentIntent.latest_charge
+          : paymentIntent.latest_charge.id;
+      }
+    } catch (e) {
+      console.error('Error fetching payment intent for charge ID:', e);
+    }
+  }
+
+  console.log(`Invoice ${invoice.id} - resolved charge ID: ${chargeId}`);
+
+  // Update job_payments record with payment intent and charge
+  if (invoice.payment_intent || chargeId) {
     await supabase
       .from("job_payments")
       .update({
         status: "succeeded",
-        stripe_payment_intent_id: invoice.payment_intent as string,
+        stripe_payment_intent_id: typeof invoice.payment_intent === 'string' 
+          ? invoice.payment_intent 
+          : invoice.payment_intent?.id || null,
+        stripe_charge_id: chargeId,
       })
       .eq("job_id", actualJobId);
   }

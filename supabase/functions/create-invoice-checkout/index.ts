@@ -199,10 +199,8 @@ serve(async (req) => {
         { name: "Project", value: job.title || "Project Funding" },
         { name: "Agency", value: agency.name },
       ],
-      // Transfer data for Connect
-      transfer_data: {
-        destination: agency.stripe_account_id,
-      },
+      // NO transfer_data - funds stay on platform for escrow/milestone releases
+      // Transfers happen via release-milestone function
       // Footer
       footer: "Thank you for using ScalingAD. Funds will be held in escrow until work is approved.",
     });

@@ -75,6 +75,10 @@ serve(async (req) => {
             id,
             name,
             stripe_account_id
+          ),
+          job_payments (
+            stripe_charge_id,
+            stripe_payment_intent_id
           )
         )
       `)
@@ -136,8 +140,12 @@ serve(async (req) => {
 
     console.log(`Releasing milestone ${milestone.id}: ${amountInCents} cents to ${agency.stripe_account_id}`);
 
-    // Create transfer to agency's connected account
-    const transfer = await stripe.transfers.create({
+    // Get charge ID for source_transaction (allows transfer before funds settle)
+    const jobPayment = job.job_payments?.[0];
+    const chargeId = jobPayment?.stripe_charge_id;
+
+    // Build transfer params
+    const transferParams: any = {
       amount: amountInCents,
       currency: milestone.currency.toLowerCase(),
       destination: agency.stripe_account_id,
@@ -148,7 +156,31 @@ serve(async (req) => {
         platform: "scalingad",
       },
       description: `Milestone: ${milestone.title}`,
-    });
+    };
+
+    // If we have a charge ID, use source_transaction to link the transfer
+    // This allows transfers even before funds have settled
+    if (chargeId) {
+      transferParams.source_transaction = chargeId;
+      console.log(`Using source_transaction: ${chargeId}`);
+    }
+
+    let transfer;
+    try {
+      transfer = await stripe.transfers.create(transferParams);
+    } catch (stripeError: any) {
+      // Handle insufficient funds error with friendly message
+      if (stripeError.code === "balance_insufficient") {
+        return new Response(JSON.stringify({ 
+          error: "Payment is still processing. Funds typically settle within 2 business days. Please try again later.",
+          code: "funds_settling"
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw stripeError;
+    }
 
     console.log(`Transfer created: ${transfer.id}`);
 
