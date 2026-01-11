@@ -255,20 +255,12 @@ export const StripeOnboarding: React.FC = () => {
               Stripe Connected!
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-              Your Stripe account is fully set up and ready to receive payments.
+              Your Stripe account is set up & ready to receive payments.
             </p>
-            {stripeAccountId && (
-              <p className="text-sm text-gray-500 dark:text-gray-500 mb-6">
-                Account ID: {stripeAccountId.slice(0, 12)}...
-              </p>
-            )}
             <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => navigate("/agency/dashboard")}>
-                Back to Dashboard
-              </Button>
               <Button variant="primary" onClick={handleOpenStripeDashboard} disabled={loading}>
                 <Icon name="open_in_new" className="mr-2" />
-                Stripe Dashboard
+                See Stripe Dashboard
               </Button>
             </div>
           </div>
@@ -424,12 +416,6 @@ export const StripeOnboarding: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
       <div className="flex items-center gap-4 mb-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-        >
-          <Icon name="arrow_back" className="text-gray-600 dark:text-gray-400" />
-        </button>
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Stripe Connect

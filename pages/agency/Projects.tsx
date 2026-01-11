@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
@@ -59,9 +59,8 @@ export const Projects: React.FC = () => {
           agencyId: j.agency_id,
           title: j.title,
           description: j.description,
-          amount: parseFloat(j.amount),
+          amount: parseAmount(j.amount),
           currency: j.currency,
-          platformFee: parseFloat(j.platform_fee || 0),
           status: j.status as JobStatus,
           createdAt: j.created_at,
           updatedAt: j.updated_at,
@@ -209,7 +208,7 @@ export const Projects: React.FC = () => {
                       {/* Amount */}
                       <div className="text-right">
                         <p className="font-semibold text-gray-900 dark:text-white">
-                          ${project.amount.toLocaleString()}
+                          €{project.amount.toLocaleString()}
                         </p>
                         <p className="text-xs text-gray-400">Project amount</p>
                       </div>

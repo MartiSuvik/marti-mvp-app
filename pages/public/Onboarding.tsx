@@ -15,17 +15,17 @@ import { FEATURES, isWhitelistedEmail } from "../../config/features";
 // SECTION A: Business Basics Options
 // ==============================================
 const MONTHLY_REVENUE_OPTIONS = [
-  { value: "$10k–$50k", label: "$10k–$50k" },
-  { value: "$50k–$100k", label: "$50k–$100k" },
-  { value: "$100k–$500k", label: "$100k–$500k" },
-  { value: "Over $500k", label: "Over $500k" },
+  { value: "€10k–€50k", label: "€10k–€50k" },
+  { value: "€50k–€100k", label: "€50k–€100k" },
+  { value: "€100k–€500k", label: "€100k–€500k" },
+  { value: "Over €500k", label: "Over €500k" },
 ];
 
 const AOV_OPTIONS = [
-  { value: "< $30", label: "< $30" },
-  { value: "$30–$70", label: "$30–$70" },
-  { value: "$70–$150", label: "$70–$150" },
-  { value: "$150+", label: "$150+" },
+  { value: "< €30", label: "< €30" },
+  { value: "€30–€70", label: "€30–€70" },
+  { value: "€70–€150", label: "€70–€150" },
+  { value: "€150+", label: "€150+" },
 ];
 
 const PROFIT_MARGIN_OPTIONS = [
@@ -46,10 +46,10 @@ const BUSINESS_MODEL_OPTIONS = [
 // SECTION B: Ads & Performance Options
 // ==============================================
 const AD_SPEND_OPTIONS = [
-  { value: "$0", label: "$0 (Not running ads yet)" },
-  { value: "$1k–$5k", label: "$1k–$5k" },
-  { value: "$5k–$20k", label: "$5k–$20k" },
-  { value: "$20k+", label: "$20k+" },
+  { value: "€0", label: "€0 (Not running ads yet)" },
+  { value: "€1k–€5k", label: "€1k–€5k" },
+  { value: "€5k–€20k", label: "€5k–€20k" },
+  { value: "€20k+", label: "€20k+" },
 ];
 
 const AD_PLATFORMS_OPTIONS = [
@@ -135,12 +135,12 @@ export const Onboarding: React.FC = () => {
   const [answers, setAnswers] = useState<Partial<OnboardingAnswers>>({
     // Section A: Business Basics
     productDescription: "",
-    monthlyRevenue: "$10k–$50k",
-    aov: "< $30",
+    monthlyRevenue: "€10k–€50k",
+    aov: "< €30",
     profitMargin: "< 40%",
     businessModel: "One-time purchase",
     // Section B: Ads & Performance
-    adSpend: "$0",
+    adSpend: "€0",
     adPlatforms: ["Meta"],
     otherPlatforms: "",
     revenueConsistency: "Very inconsistent",
@@ -376,7 +376,7 @@ export const Onboarding: React.FC = () => {
         name: "Elevate Digital",
         platforms: ["Meta", "Google"],
         industries: ["E-commerce"],
-        spendBrackets: ["$5k–$20k", "$20k+"],
+        spendBrackets: ["€5k–€20k", "€20k+"],
         objectives: ["Scale spend", "Creative improvement"],
         verified: true,
       },
@@ -385,7 +385,7 @@ export const Onboarding: React.FC = () => {
         name: "Growth Partners",
         platforms: ["Meta", "Google"],
         industries: ["E-commerce", "DTC"],
-        spendBrackets: ["$1k–$5k", "$5k–$20k"],
+        spendBrackets: ["€1k–€5k", "€5k–€20k"],
         objectives: ["Improve ROAS", "Scale spend"],
         verified: true,
       },
@@ -394,7 +394,7 @@ export const Onboarding: React.FC = () => {
         name: "Scale Studio",
         platforms: ["Meta"],
         industries: ["E-commerce"],
-        spendBrackets: ["$5k–$20k", "$20k+"],
+        spendBrackets: ["€5k–€20k", "€20k+"],
         objectives: ["Creative improvement", "Scale spend"],
         verified: true,
       },

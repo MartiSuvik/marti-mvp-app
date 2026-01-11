@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
@@ -155,14 +155,14 @@ export const ProjectDetail: React.FC = () => {
           dealId: data.deal_id,
           businessId: data.business_id,
           agencyId: data.agency_id,
+          proposalId: data.proposal_id,
           title: data.title,
           description: data.description,
-          amount: parseFloat(data.amount),
+          amount: parseAmount(data.amount),
           currency: data.currency,
-          platformFee: parseFloat(data.platform_fee || 0),
           status: data.status as JobStatus,
           hasMilestones: data.has_milestones || false,
-          totalReleased: parseFloat(data.total_released || 0),
+          totalReleased: parseAmount(data.total_released || 0),
           createdAt: data.created_at,
           updatedAt: data.updated_at,
         });
@@ -196,7 +196,7 @@ export const ProjectDetail: React.FC = () => {
           jobId: m.job_id,
           title: m.title,
           description: m.description,
-          amount: parseFloat(m.amount),
+          amount: parseAmount(m.amount),
           currency: m.currency,
           orderIndex: m.order_index,
           status: m.status as MilestoneStatus,
@@ -235,7 +235,7 @@ export const ProjectDetail: React.FC = () => {
             jobId: p.job_id,
             stripePaymentIntentId: p.stripe_payment_intent_id,
             stripeChargeId: p.stripe_charge_id,
-            amount: parseFloat(p.amount),
+            amount: parseAmount(p.amount),
             status: p.status,
             createdAt: p.created_at,
           }))
@@ -248,7 +248,7 @@ export const ProjectDetail: React.FC = () => {
             id: p.id,
             jobId: p.job_id,
             stripeTransferId: p.stripe_transfer_id,
-            amount: parseFloat(p.amount),
+            amount: parseAmount(p.amount),
             status: p.status,
             createdAt: p.created_at,
           }))
@@ -292,6 +292,14 @@ export const ProjectDetail: React.FC = () => {
       "Are you sure you want to decline this project? This action cannot be undone."
     );
     if (!confirmed) return;
+
+    // Also update the linked proposal to declined status
+    if (job?.proposalId) {
+      await supabase
+        .from("proposals")
+        .update({ status: "declined", updated_at: new Date().toISOString() })
+        .eq("id", job.proposalId);
+    }
 
     await updateJobStatus("declined");
   };
@@ -523,7 +531,7 @@ export const ProjectDetail: React.FC = () => {
                             </p>
                           )}
                           <p className="text-lg font-semibold text-gray-900 dark:text-white">
-                            ${milestone.amount.toLocaleString()}
+                            €{milestone.amount.toLocaleString()}
                           </p>
                         </div>
 
@@ -581,7 +589,7 @@ export const ProjectDetail: React.FC = () => {
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-gray-500">Earned so far</span>
                   <span className="font-medium text-emerald-600">
-                    ${(job.totalReleased || 0).toLocaleString()} of ${job.amount.toLocaleString()}
+                    €{(job.totalReleased || 0).toLocaleString()} of €{job.amount.toLocaleString()}
                   </span>
                 </div>
                 <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -742,7 +750,7 @@ export const ProjectDetail: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-emerald-700">
-                        +${payout.amount.toLocaleString()}
+                        +€{payout.amount.toLocaleString()}
                       </p>
                       <p className="text-xs text-gray-500 capitalize">{payout.status}</p>
                     </div>
@@ -766,7 +774,7 @@ export const ProjectDetail: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-blue-700">
-                        ${payment.amount.toLocaleString()}
+                        €{payment.amount.toLocaleString()}
                       </p>
                       <p className="text-xs text-gray-500 capitalize">{payment.status}</p>
                     </div>
@@ -787,7 +795,7 @@ export const ProjectDetail: React.FC = () => {
             <div className="flex justify-between">
               <span className="text-gray-500">Job Amount</span>
               <span className="font-bold text-green-600 text-xl">
-                ${job.amount.toLocaleString()}
+                €{job.amount.toLocaleString()}
               </span>
             </div>
           </Card>

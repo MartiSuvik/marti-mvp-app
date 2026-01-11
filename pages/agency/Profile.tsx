@@ -33,28 +33,89 @@ export const Profile: React.FC = () => {
     e.preventDefault();
     if (!agency) return;
 
+    console.log("[AgencyProfile] Starting update...");
+    console.log("[AgencyProfile] Agency ID:", agency.id);
+    console.log("[AgencyProfile] Agency ownerId:", agency.ownerId);
+
     setLoading(true);
     try {
-      const { error } = await supabase
+      // Get current authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log("[AgencyProfile] Current user ID:", user?.id);
+      console.log("[AgencyProfile] User error:", userError);
+      
+      if (!user) {
+        throw new Error("No authenticated user found");
+      }
+
+      // Check if we can read the agency and compare owner_id
+      const { data: checkData, error: checkError } = await supabase
         .from("agencies")
-        .update({
-          name: formData.name,
-          description: formData.description,
-          logo_url: formData.logoUrl,
-          contact_email: formData.contactEmail,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", agency.id);
+        .select("id, name, owner_id, description")
+        .eq("id", agency.id)
+        .single();
+
+      console.log("[AgencyProfile] Pre-update check:", checkData);
+      console.log("[AgencyProfile] Owner ID match:", checkData?.owner_id === user.id);
+
+      if (checkError) {
+        console.error("[AgencyProfile] Cannot read agency:", checkError);
+        throw checkError;
+      }
+
+      if (!checkData) {
+        throw new Error("Agency not found");
+      }
+
+      if (checkData.owner_id !== user.id) {
+        console.error("[AgencyProfile] PERMISSION DENIED:", {
+          agencyOwnerId: checkData.owner_id,
+          currentUserId: user.id,
+          match: false
+        });
+        
+        // Show SQL fix in console
+        const fixSQL = `UPDATE agencies SET owner_id = '${user.id}' WHERE id = '${agency.id}';`;
+        console.log(`\n🔧 Run this SQL in Supabase to fix:\n\n${fixSQL}\n`);
+        
+        showToast("Permission denied: owner_id mismatch. Check console for SQL fix.", "error");
+        return;
+      }
+
+      const updateData = {
+        name: formData.name,
+        description: formData.description,
+        logo_url: formData.logoUrl,
+        contact_email: formData.contactEmail,
+        updated_at: new Date().toISOString(),
+      };
+
+      console.log("[AgencyProfile] Sending update to Supabase:", updateData);
+
+      const { error, data } = await supabase
+        .from("agencies")
+        .update(updateData)
+        .eq("id", agency.id)
+        .select();
+
+      console.log("[AgencyProfile] Supabase response:", { data, error });
 
       if (error) throw error;
 
+      if (!data || data.length === 0) {
+        console.error("[AgencyProfile] UPDATE returned no rows - RLS blocked it");
+        throw new Error("Update blocked by RLS policy");
+      }
+
+      console.log("[AgencyProfile] Update successful, refreshing profile...");
       await refreshProfile();
       showToast("Agency profile updated successfully", "success");
     } catch (error) {
-      console.error("Error updating agency:", error);
+      console.error("[AgencyProfile] Error updating agency:", error);
       showToast("Failed to update profile", "error");
     } finally {
       setLoading(false);
+      console.log("[AgencyProfile] Update process complete");
     }
   };
 
@@ -87,7 +148,7 @@ export const Profile: React.FC = () => {
                 <img
                   src={formData.logoUrl}
                   alt={formData.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain p-2"
                 />
               ) : (
                 <Icon name="business" className="text-3xl text-primary" />

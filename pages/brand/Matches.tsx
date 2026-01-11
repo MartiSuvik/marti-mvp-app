@@ -213,11 +213,11 @@ export const Matches: React.FC = () => {
       // Build onboarding answers from profile (new fields)
       const answers: OnboardingAnswers = {
         productDescription: profile.productDescription || "",
-        monthlyRevenue: profile.monthlyRevenue || "$50k–$100k",
-        aov: profile.aov || "$30–$70",
+        monthlyRevenue: profile.monthlyRevenue || "€50k–€100k",
+        aov: profile.aov || "€30–€70",
         profitMargin: profile.profitMargin || "40–55%",
         businessModel: profile.businessModel || "One-time purchase",
-        adSpend: profile.adSpend || "$1k–$5k",
+        adSpend: profile.adSpend || "€1k–€5k",
         adPlatforms: profile.adPlatforms || ["Meta"],
         otherPlatforms: profile.otherPlatforms || "",
         revenueConsistency: profile.revenueConsistency || "Mostly stable",
@@ -412,7 +412,7 @@ export const Matches: React.FC = () => {
                   Generating...
                 </>
               ) : (
-                "Generate in 60s"
+                "Generate in 10s"
               )}
             </Button>
           </div>

@@ -188,7 +188,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "ScalingAD <notifications@scalingad.com>",
+        from: "ScalingAD <noreply@updates.scalingad.com>",
         to: agencyEmail,
         subject: `🎯 New Match Request from ${businessName}`,
         html: emailHtml,

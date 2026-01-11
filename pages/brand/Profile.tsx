@@ -15,17 +15,17 @@ import { Icon } from "../../components/Icon";
 
 // Section A: Business Basics
 const MONTHLY_REVENUE_OPTIONS = [
-  { value: "$10k–$50k", label: "$10k–$50k" },
-  { value: "$50k–$100k", label: "$50k–$100k" },
-  { value: "$100k–$500k", label: "$100k–$500k" },
-  { value: "Over $500k", label: "Over $500k" },
+  { value: "€10k–€50k", label: "€10k–€50k" },
+  { value: "€50k–€100k", label: "€50k–€100k" },
+  { value: "€100k–€500k", label: "€100k–€500k" },
+  { value: "Over €500k", label: "Over €500k" },
 ];
 
 const AOV_OPTIONS = [
-  { value: "< $30", label: "< $30" },
-  { value: "$30–$70", label: "$30–$70" },
-  { value: "$70–$150", label: "$70–$150" },
-  { value: "$150+", label: "$150+" },
+  { value: "< €30", label: "< €30" },
+  { value: "€30–€70", label: "€30–€70" },
+  { value: "€70–€150", label: "€70–€150" },
+  { value: "€150+", label: "€150+" },
 ];
 
 const PROFIT_MARGIN_OPTIONS = [
@@ -44,10 +44,10 @@ const BUSINESS_MODEL_OPTIONS = [
 
 // Section B: Ads & Performance
 const AD_SPEND_OPTIONS = [
-  { value: "$0", label: "$0 (Not running ads yet)" },
-  { value: "$1k–$5k", label: "$1k–$5k" },
-  { value: "$5k–$20k", label: "$5k–$20k" },
-  { value: "$20k+", label: "$20k+" },
+  { value: "€0", label: "€0 (Not running ads yet)" },
+  { value: "€1k–€5k", label: "€1k–€5k" },
+  { value: "€5k–€20k", label: "€5k–€20k" },
+  { value: "€20k+", label: "€20k+" },
 ];
 
 const AD_PLATFORMS_OPTIONS = [
@@ -398,10 +398,6 @@ export const Profile: React.FC = () => {
             <Button variant="primary" onClick={() => setIsEditing(true)}>
               <Icon name="edit" className="mr-2" />
               Edit Profile
-            </Button>
-            <Button variant="outline" onClick={handleRegenerateMatches}>
-              <Icon name="refresh" className="mr-2" />
-              Regenerate Matches
             </Button>
           </div>
         </div>

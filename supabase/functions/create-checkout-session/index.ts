@@ -67,7 +67,6 @@ serve(async (req) => {
         agency_id,
         amount,
         currency,
-        platform_fee,
         status,
         agencies (
           id,
@@ -113,7 +112,8 @@ serve(async (req) => {
     // Convert amount to cents
     const amountInCents = Math.round(job.amount * 100);
 
-    // Create Checkout Session
+    // Create Checkout Session - funds go to platform, NOT auto-transferred to agency
+    // Transfers happen later via release-milestone or transfer-to-agency
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
@@ -130,14 +130,13 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
+      // NO transfer_data - funds stay in platform account for escrow
+      // Store agency info in metadata for later transfer
       payment_intent_data: {
-        // Use destination charge - funds go to connected account
-        transfer_data: {
-          destination: agency.stripe_account_id,
-        },
         metadata: {
           job_id: job.id,
           agency_id: job.agency_id,
+          agency_stripe_account_id: agency.stripe_account_id,
           business_id: job.business_id,
           platform: "scalingad",
         },

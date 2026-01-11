@@ -121,20 +121,6 @@ export const AgencySidebar: React.FC = () => {
           })}
         </div>
       </nav>
-
-      {/* Support Section */}
-      <div className="p-4 border-t border-gray-200/50 dark:border-gray-800/50">
-        <div className="text-center mb-4">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mt-2">
-            We're here to help
-          </p>
-        </div>
-        <div className="space-y-2">
-          <button className="w-full px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-primary to-pink-600 rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-primary/20">
-            Book a Call
-          </button>
-        </div>
-      </div>
     </aside>
   );
 };

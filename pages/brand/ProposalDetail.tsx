@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/Button";
@@ -63,9 +63,8 @@ export default function ProposalDetail() {
         businessId: data.business_id,
         title: data.title,
         description: data.description,
-        amount: parseFloat(data.amount),
+        amount: parseAmount(data.amount),
         currency: data.currency,
-        platformFee: parseFloat(data.platform_fee),
         status: data.status,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
@@ -113,7 +112,7 @@ export default function ProposalDetail() {
         throw new Error(errorMessage);
       }
 
-      showToast("Proposal accepted! Redirecting to payment...", "success");
+      showToast("Proposal accepted!", "success");
 
       // Navigate to job detail page where payment can be made
       setTimeout(() => {
@@ -225,7 +224,7 @@ export default function ProposalDetail() {
                   <img
                     src={agency.logoUrl}
                     alt={agency.name}
-                    className="w-16 h-16 rounded-lg object-cover bg-gray-100 dark:bg-gray-800"
+                    className="w-16 h-16 rounded-lg object-contain p-2 bg-gray-100 dark:bg-gray-800"
                   />
                 ) : (
                   <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-primary to-pink-600 flex items-center justify-center">
@@ -285,7 +284,7 @@ export default function ProposalDetail() {
               <div className="flex justify-between">
                 <span className="font-semibold text-gray-900 dark:text-white">Total</span>
                 <span className="text-2xl font-bold text-primary">
-                  ${proposal.amount.toLocaleString()}
+                  €{proposal.amount.toLocaleString()}
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">

@@ -26,11 +26,11 @@ export const Agencies: React.FC = () => {
     "Google"
   ];
   const spendBrackets = [
-    "Under $5k",
-    "$5–20k",
-    "$20–50k",
-    "$50–150k",
-    "$150k+",
+    "Under €5k",
+    "€5–20k",
+    "€20–50k",
+    "€50–150k",
+    "€150k+",
   ];
 
   useEffect(() => {
@@ -92,7 +92,7 @@ export const Agencies: React.FC = () => {
           "Full-service digital marketing agency specializing in e-commerce and SaaS growth.",
         platforms: ["FB/IG", "Google"],
         industries: ["E-commerce", "SaaS"],
-        spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
+        spendBrackets: ["€5–20k", "€20–50k", "€50–150k"],
         objectives: ["Improve ROAS", "Scale spend", "Creative improvement"],
         verified: true,
       },
@@ -103,7 +103,7 @@ export const Agencies: React.FC = () => {
           "B2B marketing powerhouse focused on scaling high-growth SaaS companies.",
         platforms: ["Google", "YouTube", "LinkedIn"],
         industries: ["SaaS", "Finance"],
-        spendBrackets: ["$20–50k", "$50–150k", "$150k+"],
+        spendBrackets: ["€20–50k", "€50–150k", "€150k+"],
         objectives: ["Scale spend", "Expand channels"],
         verified: true,
       },
@@ -114,7 +114,7 @@ export const Agencies: React.FC = () => {
           "Creative-first agency with expertise in performance marketing and analytics.",
         platforms: ["FB/IG", "Google", "Programmatic"],
         industries: ["E-commerce", "Healthcare"],
-        spendBrackets: ["Under $5k", "$5–20k", "$20–50k"],
+        spendBrackets: ["Under €5k", "€5–20k", "€20–50k"],
         objectives: ["Fix tracking", "Improve ROAS"],
         verified: true,
       },
@@ -125,7 +125,7 @@ export const Agencies: React.FC = () => {
           "Data-driven agency helping brands scale through strategic paid media.",
         platforms: ["FB/IG", "Google"],
         industries: ["E-commerce", "Fitness"],
-        spendBrackets: ["$5–20k", "$20–50k", "$50–150k"],
+        spendBrackets: ["€5–20k", "€20–50k", "€50–150k"],
         objectives: ["Scale spend", "Improve ROAS", "Expand channels"],
         verified: true,
       },

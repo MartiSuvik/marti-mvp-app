@@ -6,6 +6,7 @@ import { Sidebar } from "./components/Sidebar";
 import { Header } from "./components/Header";
 import { AgencySidebar } from "./components/AgencySidebar";
 import { AgencyDashboardLayout } from "./components/AgencyDashboardLayout";
+import { SleekplanWidget } from "./components/FeedbackWidget";
 
 // Public pages
 import { Landing } from "./pages/public/Landing";
@@ -137,6 +138,7 @@ const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({
           {children}
         </div>
       </main>
+      <SleekplanWidget />
     </div>
   );
 };

@@ -108,28 +108,37 @@ serve(async (req) => {
       });
     }
 
-    // With destination charges, the transfer happens automatically when payment succeeds
-    // This endpoint is mainly for tracking/confirmation
-    // If we were using separate charges & transfers, we'd create a transfer here:
+    // Create transfer to agency - funds are held in platform until now
+    const transferAmount = Math.round(job.amount * 100);
     
-    // For separate charges model (if needed in future):
-    // const transferAmount = Math.round((job.amount - job.platform_fee) * 100);
-    // const transfer = await stripe.transfers.create({
-    //   amount: transferAmount,
-    //   currency: job.currency.toLowerCase(),
-    //   destination: agency.stripe_account_id,
-    //   metadata: {
-    //     job_id: job.id,
-    //     payment_intent_id: payment.stripe_payment_intent_id,
-    //   },
-    // });
+    // Get charge ID for source_transaction
+    const chargeId = payment.stripe_charge_id;
+    
+    const transferParams: any = {
+      amount: transferAmount,
+      currency: job.currency.toLowerCase(),
+      destination: agency.stripe_account_id,
+      metadata: {
+        job_id: job.id,
+        payment_intent_id: payment.stripe_payment_intent_id,
+        platform: "scalingad",
+      },
+      description: `Job payment: ${job.id}`,
+    };
+    
+    // Link to source charge if available
+    if (chargeId) {
+      transferParams.source_transaction = chargeId;
+    }
+    
+    const transfer = await stripe.transfers.create(transferParams);
 
-    // Create payout record (for destination charges, transfer ID is the same as charge)
+    // Create payout record
     await supabase.from("job_payouts").insert({
       job_id: job.id,
-      stripe_transfer_id: payment.stripe_charge_id || payment.stripe_payment_intent_id,
-      amount: job.amount - job.platform_fee,
-      status: "paid", // With destination charges, it's already transferred
+      stripe_transfer_id: transfer.id,
+      amount: job.amount,
+      status: "paid",
     });
 
     // Update job status
@@ -147,7 +156,7 @@ serve(async (req) => {
       actor_id: job.business_id,
       event_type: "payout_completed",
       details: {
-        amount: job.amount - job.platform_fee,
+        amount: job.amount, // Full amount - no platform fee
         agency_id: agency.id,
         agency_name: agency.name,
       },
@@ -157,7 +166,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: "Funds released to agency",
-        payout_amount: job.amount - job.platform_fee,
+        payout_amount: job.amount, // Full amount - no platform fee
         currency: job.currency,
       }),
       {

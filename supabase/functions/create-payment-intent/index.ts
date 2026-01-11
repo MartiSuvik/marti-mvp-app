@@ -57,7 +57,6 @@ serve(async (req) => {
         agency_id,
         amount,
         currency,
-        platform_fee,
         status,
         agencies (
           id,
@@ -94,21 +93,17 @@ serve(async (req) => {
 
     // Convert amount to cents
     const amountInCents = Math.round(job.amount * 100);
-    const platformFeeInCents = Math.round(job.platform_fee * 100);
 
-    // Create PaymentIntent with destination charge (funds go to connected account)
+    // Create PaymentIntent WITHOUT transfer_data - funds stay in platform account
+    // Transfers happen later via release-milestone or transfer-to-agency functions
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amountInCents,
       currency: job.currency.toLowerCase(),
-      // Use destination charge - platform collects full amount, then transfers
-      transfer_data: {
-        destination: agency.stripe_account_id,
-      },
-      // Platform fee is deducted from the transfer
-      application_fee_amount: platformFeeInCents,
+      // Store agency account ID in metadata for later transfer
       metadata: {
         job_id: job.id,
         agency_id: job.agency_id,
+        agency_stripe_account_id: agency.stripe_account_id,
         business_id: job.business_id,
         platform: "scalingad",
       },

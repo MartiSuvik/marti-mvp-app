@@ -22,59 +22,32 @@ export function useUnreadCount(): UseUnreadCountReturn {
     }
 
     try {
-      // Get conversations for this user
-      let conversationIds: string[] = [];
-
-      if (isAgencyUser && agency) {
-        // Agency user: get conversations where agency_id matches
-        const { data: convs } = await supabase
-          .from("conversations")
-          .select("id")
-          .eq("agency_id", agency.id);
-        conversationIds = (convs || []).map((c) => c.id);
-      } else {
-        // Business user: get conversations where business_id matches
-        const { data: convs } = await supabase
-          .from("conversations")
-          .select("id")
-          .eq("business_id", user.id);
-        conversationIds = (convs || []).map((c) => c.id);
-      }
-
-      if (conversationIds.length === 0) {
-        setUnreadCount(0);
-        setLoading(false);
-        return;
-      }
-
-      // Count unread messages (not sent by current user, read_at is null)
-      const senderType = isAgencyUser ? "agency" : "business";
-      
-      const { count, error } = await supabase
-        .from("messages")
-        .select("*", { count: "exact", head: true })
-        .in("conversation_id", conversationIds)
-        .neq("sender_type", senderType)
-        .is("read_at", null);
+      // Query conversation_members table for total unread count
+      const { data, error } = await supabase
+        .from("conversation_members")
+        .select("unread_count")
+        .eq("user_id", user.id);
 
       if (error) throw error;
 
-      setUnreadCount(count || 0);
+      // Sum up all unread counts
+      const total = (data || []).reduce((sum, member) => sum + (member.unread_count || 0), 0);
+      setUnreadCount(total);
     } catch (err) {
       console.error("Error fetching unread count:", err);
       setUnreadCount(0);
     } finally {
       setLoading(false);
     }
-  }, [user, agency, isAgencyUser]);
+  }, [user]);
 
-  // Subscribe to realtime updates for new messages
+  // Subscribe to realtime updates for conversation_members changes
   useEffect(() => {
     if (!user) return;
 
     fetchUnreadCount();
 
-    // Subscribe to messages table changes
+    // Subscribe to conversation_members table changes for this user
     const channel: RealtimeChannel = supabase
       .channel("unread-count-updates")
       .on(
@@ -82,10 +55,11 @@ export function useUnreadCount(): UseUnreadCountReturn {
         {
           event: "*",
           schema: "public",
-          table: "messages",
+          table: "conversation_members",
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
-          // Refetch count when messages change
+          // Refetch count when this user's memberships change
           fetchUnreadCount();
         }
       )

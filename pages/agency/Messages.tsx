@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useConversations, ConversationWithDetails } from "../../hooks/useConversations";
 import { useChat } from "../../hooks/useChat";
+import { useUnreadCount } from "../../hooks/useUnreadCount";
 import { supabase } from "../../lib/supabase";
 import { Icon } from "../../components/Icon";
 import {
@@ -19,7 +20,8 @@ export const Messages: React.FC = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams<{ conversationId?: string }>();
   const { user, agencyProfile } = useAuth();
-  const { conversations, loading: loadingConversations } = useConversations();
+  const { conversations, loading: loadingConversations, refetch: refetchConversations } = useConversations();
+  const { refetch: refetchUnreadCount } = useUnreadCount();
   const { showToast } = useToast();
   
   const [selectedConversation, setSelectedConversation] = useState<ConversationWithDetails | null>(null);
@@ -62,9 +64,13 @@ export const Messages: React.FC = () => {
   // Mark as read when conversation is selected
   useEffect(() => {
     if (selectedConversation && !loadingMessages) {
-      markAsRead();
+      // Mark as read and refetch immediately
+      markAsRead().then(() => {
+        refetchUnreadCount();
+        refetchConversations();
+      });
     }
-  }, [selectedConversation, loadingMessages, markAsRead]);
+  }, [selectedConversation?.id, loadingMessages]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -296,7 +302,7 @@ export const Messages: React.FC = () => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50 dark:bg-gray-900">
+            <div className="flex-1 overflow-y-auto px-2 py-6 space-y-4 bg-gray-50 dark:bg-gray-900 w-full">
               {loadingMessages ? (
                 <div className="flex items-center justify-center h-full">
                   <Icon name="hourglass_empty" className="text-3xl text-primary animate-spin" />

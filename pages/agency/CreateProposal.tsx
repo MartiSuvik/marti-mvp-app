@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { Button } from "../../components/ui/Button";
@@ -117,7 +117,7 @@ export default function CreateProposal() {
     try {
       setSubmitting(true);
 
-      const amount = parseFloat(formData.amount);
+      const amount = parseAmount(formData.amount);
 
       const { error } = await supabase.from("proposals").insert({
         deal_id: dealId,
@@ -209,7 +209,7 @@ export default function CreateProposal() {
           {/* Amount */}
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Project Amount (USD) *
+              Project Amount (EUR) *
             </label>
             <Input
               type="number"
@@ -247,15 +247,6 @@ export default function CreateProposal() {
 
           {/* Actions */}
           <div className="flex gap-4">
-            <Button
-              variant="outline"
-              onClick={handleSaveDraft}
-              disabled={submitting}
-              className="flex-1"
-            >
-              <Icon name="save" />
-              Save as Draft
-            </Button>
             <Button
               variant="primary"
               onClick={handleSendProposal}

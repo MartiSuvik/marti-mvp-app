@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { Card } from "../../components/ui/Card";
@@ -18,7 +18,7 @@ interface BusinessInfo {
   businessModel: string;
 }
 
-interface ProposalWithBusiness extends Omit<Proposal, 'businessId' | 'platformFee'> {
+interface ProposalWithBusiness extends Omit<Proposal, 'businessId'> {
   business?: BusinessInfo;
   deliverables?: string[];
   timeline?: string;
@@ -109,7 +109,7 @@ export default function AgencyProposalDetail() {
         agencyId: proposalData.agency_id,
         title: proposalData.title,
         description: proposalData.description,
-        amount: parseFloat(proposalData.amount || proposalData.price || 0),
+        amount: parseAmount(proposalData.amount || proposalData.price || 0),
         currency: proposalData.currency,
         deliverables: proposalData.deliverables || [],
         timeline: proposalData.timeline,
@@ -262,10 +262,6 @@ export default function AgencyProposalDetail() {
           )}
           {proposal.status === "sent" && (
             <>
-              <Button variant="outline" onClick={handleWithdraw} disabled={withdrawing}>
-                <Icon name="undo" className="mr-2" />
-                {withdrawing ? "Withdrawing..." : "Withdraw"}
-              </Button>
               <Button variant="primary" onClick={handleMessageBusiness}>
                 <Icon name="chat" className="mr-2" />
                 Message
@@ -372,7 +368,7 @@ export default function AgencyProposalDetail() {
             <div className="flex justify-between items-center">
               <span className="text-gray-600 dark:text-gray-400">Proposal Amount</span>
               <span className="text-2xl font-bold text-green-600">
-                ${proposal.amount.toLocaleString()}
+                €{proposal.amount.toLocaleString()}
               </span>
             </div>
           </Card>

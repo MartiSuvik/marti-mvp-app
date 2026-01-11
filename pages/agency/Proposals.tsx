@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { Icon } from "../../components/Icon";
@@ -146,9 +146,8 @@ export default function Proposals() {
         businessId: p.business_id,
         title: p.title,
         description: p.description,
-        amount: parseFloat(p.amount),
+        amount: parseAmount(p.amount),
         currency: p.currency,
-        platformFee: parseFloat(p.platform_fee),
         status: p.status,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
@@ -275,7 +274,7 @@ export default function Proposals() {
               <Icon name="payments" className="text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">€{stats.totalValue.toLocaleString()}</p>
               <p className="text-sm text-gray-500">Total Value</p>
             </div>
           </div>
@@ -351,7 +350,7 @@ export default function Proposals() {
                   <div className="flex items-center gap-6 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <Icon name="payments" className="text-sm" />
-                      ${proposal.amount.toLocaleString()}
+                      €{proposal.amount.toLocaleString()}
                     </span>
                     <span className="flex items-center gap-1">
                       <Icon name="schedule" className="text-sm" />
@@ -363,7 +362,7 @@ export default function Proposals() {
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Amount</p>
                     <p className="text-xl font-bold text-green-400">
-                      ${proposal.amount.toLocaleString()}
+                      €{proposal.amount.toLocaleString()}
                     </p>
                   </div>
                   {proposal.status === "draft" && (
@@ -429,7 +428,7 @@ export default function Proposals() {
                     variant="outline"
                     onClick={() => {
                       setShowDealModal(false);
-                      navigate("/agency/matches");
+                      navigate("/agency/deals");
                     }}
                   >
                     View Matches

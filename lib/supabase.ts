@@ -33,3 +33,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     },
   },
 });
+
+/**
+ * Parse a currency amount from database (DECIMAL) to JavaScript number.
+ * Rounds to 2 decimal places to avoid floating-point precision issues.
+ */
+export function parseAmount(value: string | number | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  const parsed = typeof value === 'string' ? parseFloat(value) : value;
+  return Math.round(parsed * 100) / 100;
+}

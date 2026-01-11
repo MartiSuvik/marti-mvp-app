@@ -99,7 +99,6 @@ serve(async (req) => {
         description: proposal.description,
         amount: proposal.amount,
         currency: proposal.currency,
-        platform_fee: proposal.platform_fee,
         status: "pending", // Agency needs to accept job
       })
       .select()

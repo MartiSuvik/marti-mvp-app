@@ -173,7 +173,7 @@ export function useConversations(): UseConversationsReturn {
 
     fetchConversations();
 
-    // Subscribe to messages and conversations table changes
+    // Subscribe to messages and conversation_members table changes
     const channel: RealtimeChannel = supabase
       .channel("conversations-updates")
       .on(
@@ -193,6 +193,18 @@ export function useConversations(): UseConversationsReturn {
           event: "*",
           schema: "public",
           table: "conversations",
+        },
+        () => {
+          fetchConversations();
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "conversation_members",
+          filter: `user_id=eq.${user.id}`,
         },
         () => {
           fetchConversations();

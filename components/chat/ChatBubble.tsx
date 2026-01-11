@@ -27,7 +27,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   return (
     <div
-      className={`flex gap-2 max-w-[75%] items-end relative group ${variantStyles[variant]} ${className}`}
+      className={`flex gap-2 items-end relative group ${variantStyles[variant]} ${className}`}
       {...props}
     >
       {React.Children.map(children, (child) =>
@@ -58,7 +58,7 @@ export const ChatBubbleAvatar: React.FC<ChatBubbleAvatarProps> = ({
     className={`w-8 h-8 rounded-full flex-shrink-0 overflow-hidden bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center ${className}`}
   >
     {src ? (
-      <img src={src} alt="Avatar" className="w-full h-full object-cover" />
+      <img src={src} alt="Avatar" className="w-full h-full object-contain" />
     ) : (
       <span className="text-xs font-semibold text-primary">
         {fallback.slice(0, 2).toUpperCase()}

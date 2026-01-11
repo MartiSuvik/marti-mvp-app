@@ -18,6 +18,7 @@ interface UseChatReturn {
   sendMessage: (content: string, attachment?: File, messageType?: MessageType) => Promise<void>;
   sending: boolean;
   markAsRead: () => Promise<void>;
+  debouncedMarkAsRead: () => (() => void) | undefined;
 }
 
 export function useChat({
@@ -194,25 +195,25 @@ export function useChat({
     [conversationId, userId, userType, senderName, sending]
   );
 
-  // Mark all messages from the other party as read
+  // Mark conversation as read using database function
   const markAsRead = useCallback(async () => {
     if (!conversationId || !userId) return;
 
     try {
-      const otherSenderType = userType === "business" ? "agency" : "business";
-      
-      const { error: updateError } = await supabase
-        .from("messages")
-        .update({ read_at: new Date().toISOString() })
-        .eq("conversation_id", conversationId)
-        .eq("sender_type", otherSenderType)
-        .is("read_at", null);
+      // Call the database function to mark as read
+      const { error } = await supabase
+        .rpc("mark_conversation_read", {
+          p_conversation_id: conversationId,
+          p_user_id: userId,
+        });
 
-      if (updateError) {
-        console.error("Error marking messages as read:", updateError);
+      if (error) {
+        console.error("Error marking conversation as read:", error);
+        return;
       }
 
       // Update local state to reflect read status
+      const otherSenderType = userType === "business" ? "agency" : "business";
       setMessages((prev) =>
         prev.map((msg) =>
           msg.senderType === otherSenderType && !msg.readAt
@@ -221,9 +222,18 @@ export function useChat({
         )
       );
     } catch (err) {
-      console.error("Error marking messages as read:", err);
+      console.error("Error marking conversation as read:", err);
     }
   }, [conversationId, userId, userType]);
+
+  // Debounced version of markAsRead
+  const debouncedMarkAsRead = useCallback(() => {
+    const timeoutId = setTimeout(() => {
+      markAsRead();
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [markAsRead]);
 
   return {
     messages,
@@ -232,6 +242,7 @@ export function useChat({
     sendMessage,
     sending,
     markAsRead,
+    debouncedMarkAsRead,
   };
 }
 

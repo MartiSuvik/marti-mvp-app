@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { Job, Agency, JobStatus, JobPayment, JobPayout, Milestone, MilestoneStatus } from "../../types";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -23,83 +23,90 @@ import { Input } from "../../components/ui/Input";
 
 // Status configuration
 const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: string; bgColor: string; description: string }> = {
-  draft: { 
-    label: "Draft", 
-    icon: "edit_note", 
-    color: "text-gray-500", 
+  draft: {
+    label: "Draft",
+    icon: "edit_note",
+    color: "text-gray-500",
     bgColor: "bg-gray-100 dark:bg-gray-700",
-    description: "Job is being created" 
+    description: "Job is being created"
   },
-  pending: { 
-    label: "Pending Acceptance", 
-    icon: "hourglass_empty", 
-    color: "text-yellow-500", 
+  pending: {
+    label: "Pending Acceptance",
+    icon: "hourglass_empty",
+    color: "text-yellow-500",
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
-    description: "Waiting for agency to accept the job" 
+    description: "Waiting for agency to accept the job"
   },
-  unfunded: { 
-    label: "Awaiting Payment", 
-    icon: "payments", 
-    color: "text-orange-500", 
+  unfunded: {
+    label: "Awaiting Payment",
+    icon: "payments",
+    color: "text-orange-500",
     bgColor: "bg-orange-100 dark:bg-orange-900/30",
-    description: "Agency accepted - fund the job to begin work" 
+    description: "Agency accepted - fund the job to begin work"
   },
-  funded: { 
-    label: "Funded", 
-    icon: "account_balance_wallet", 
-    color: "text-blue-500", 
+  funded: {
+    label: "Funded",
+    icon: "account_balance_wallet",
+    color: "text-blue-500",
     bgColor: "bg-blue-100 dark:bg-blue-900/30",
-    description: "Payment received - agency can start work" 
+    description: "Payment received - agency can start work"
   },
-  in_progress: { 
-    label: "In Progress", 
-    icon: "engineering", 
-    color: "text-indigo-500", 
+  in_progress: {
+    label: "In Progress",
+    icon: "engineering",
+    color: "text-indigo-500",
     bgColor: "bg-indigo-100 dark:bg-indigo-900/30",
-    description: "Agency is working on the job" 
+    description: "Agency is working on the job"
   },
-  review: { 
-    label: "In Review", 
-    icon: "rate_review", 
-    color: "text-purple-500", 
+  review: {
+    label: "In Review",
+    icon: "rate_review",
+    color: "text-purple-500",
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
-    description: "Agency submitted work - review and approve" 
+    description: "Agency submitted work - review and approve"
   },
-  revision: { 
-    label: "Revision Requested", 
-    icon: "replay", 
-    color: "text-amber-500", 
+  revision: {
+    label: "Revision Requested",
+    icon: "replay",
+    color: "text-amber-500",
     bgColor: "bg-amber-100 dark:bg-amber-900/30",
-    description: "You requested changes - agency is revising" 
+    description: "You requested changes - agency is revising"
   },
-  approved: { 
-    label: "Approved", 
-    icon: "thumb_up", 
-    color: "text-green-500", 
+  approved: {
+    label: "Approved",
+    icon: "thumb_up",
+    color: "text-green-500",
     bgColor: "bg-green-100 dark:bg-green-900/30",
-    description: "Work approved - payment is being released" 
+    description: "Work approved - payment is being released"
   },
-  paid_out: { 
-    label: "Completed", 
-    icon: "paid", 
-    color: "text-green-600", 
+  paid_out: {
+    label: "Completed",
+    icon: "paid",
+    color: "text-green-600",
     bgColor: "bg-green-100 dark:bg-green-900/30",
-    description: "Job complete - agency has been paid" 
+    description: "Job complete - agency has been paid"
   },
-  cancelled: { 
-    label: "Cancelled", 
-    icon: "cancel", 
-    color: "text-red-500", 
+  cancelled: {
+    label: "Cancelled",
+    icon: "cancel",
+    color: "text-red-500",
     bgColor: "bg-red-100 dark:bg-red-900/30",
-    description: "Job was cancelled" 
+    description: "Job was cancelled"
   },
-  refunded: { 
-    label: "Refunded", 
-    icon: "undo", 
-    color: "text-red-500", 
+  refunded: {
+    label: "Refunded",
+    icon: "undo",
+    color: "text-red-500",
     bgColor: "bg-red-100 dark:bg-red-900/30",
-    description: "Payment was refunded" 
+    description: "Payment was refunded"
   },
+  declined: {
+    label: "Declined",
+    icon: "block",
+    color: "text-red-500",
+    bgColor: "bg-red-100 dark:bg-red-900/30",
+    description: "Agency declined this job"
+  }
 };
 
 // Milestone status configuration
@@ -281,14 +288,14 @@ export const JobDetail: React.FC = () => {
           dealId: data.deal_id,
           businessId: data.business_id,
           agencyId: data.agency_id,
+          proposalId: data.proposal_id,
           title: data.title,
           description: data.description,
-          amount: parseFloat(data.amount),
+          amount: parseAmount(data.amount),
           currency: data.currency,
-          platformFee: parseFloat(data.platform_fee || 0),
           status: data.status as JobStatus,
           hasMilestones: data.has_milestones || false,
-          totalReleased: parseFloat(data.total_released || 0),
+          totalReleased: parseAmount(data.total_released || 0),
           createdAt: data.created_at,
           updatedAt: data.updated_at,
           agency: data.agencies ? {
@@ -328,7 +335,7 @@ export const JobDetail: React.FC = () => {
           jobId: m.job_id,
           title: m.title,
           description: m.description,
-          amount: parseFloat(m.amount),
+          amount: parseAmount(m.amount),
           currency: m.currency,
           orderIndex: m.order_index,
           status: m.status as MilestoneStatus,
@@ -363,7 +370,7 @@ export const JobDetail: React.FC = () => {
           jobId: p.job_id,
           stripePaymentIntentId: p.stripe_payment_intent_id,
           stripeChargeId: p.stripe_charge_id,
-          amount: parseFloat(p.amount),
+          amount: parseAmount(p.amount),
           status: p.status,
           createdAt: p.created_at,
         })));
@@ -374,7 +381,7 @@ export const JobDetail: React.FC = () => {
           id: p.id,
           jobId: p.job_id,
           stripeTransferId: p.stripe_transfer_id,
-          amount: parseFloat(p.amount),
+          amount: parseAmount(p.amount),
           status: p.status,
           createdAt: p.created_at,
         })));
@@ -413,8 +420,9 @@ export const JobDetail: React.FC = () => {
     setActionLoading("funded");
     
     try {
-      // Call Supabase Edge Function to create Stripe Invoice
-      const { data, error } = await supabase.functions.invoke('create-invoice-checkout', {
+      // Call Supabase Edge Function to create Stripe Checkout Session
+      // Checkout always collects real payment (no credit balance auto-apply)
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { 
           job_id: job.id,
         }
@@ -422,15 +430,15 @@ export const JobDetail: React.FC = () => {
       
       if (error) throw error;
       
-      if (data?.invoice_url) {
-        // Redirect to Stripe Invoice page for payment
-        window.location.href = data.invoice_url;
+      if (data?.checkout_url) {
+        // Redirect to Stripe Checkout for payment
+        window.location.href = data.checkout_url;
       } else {
-        throw new Error("No invoice URL returned");
+        throw new Error("No checkout URL returned");
       }
     } catch (error: any) {
-      console.error("Error creating invoice:", error);
-      showToast(error.message || "Failed to create invoice", "error");
+      console.error("Error creating checkout:", error);
+      showToast(error.message || "Failed to create checkout", "error");
       setActionLoading(null);
     }
     // Note: Don't reset actionLoading here as we're redirecting
@@ -472,6 +480,14 @@ export const JobDetail: React.FC = () => {
     );
     if (!confirmed) return;
 
+    // Also update the linked proposal to declined status
+    if (job?.proposalId) {
+      await supabase
+        .from("proposals")
+        .update({ status: "declined", updated_at: new Date().toISOString() })
+        .eq("id", job.proposalId);
+    }
+
     await updateJobStatus("cancelled");
   };
 
@@ -482,7 +498,7 @@ export const JobDetail: React.FC = () => {
       return;
     }
 
-    const amount = parseFloat(newMilestone.amount);
+    const amount = parseAmount(newMilestone.amount);
     if (isNaN(amount) || amount <= 0) {
       showToast("Please enter a valid amount", "error");
       return;
@@ -618,8 +634,8 @@ export const JobDetail: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
+  const formatCurrency = (amount: number, currency: string = "EUR") => {
+    return new Intl.NumberFormat("de-DE", {
       style: "currency",
       currency: currency,
     }).format(amount);

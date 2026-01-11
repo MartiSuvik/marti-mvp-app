@@ -9,7 +9,6 @@ const mainNavItems: NavItem[] = [
   { label: "Messages", icon: "chat", href: "/messages" },
   { label: "Proposals", icon: "description", href: "/proposals" },
   { label: "Jobs", icon: "work", href: "/jobs" },
-  { label: "Agencies", icon: "people", href: "/agencies" },
 ];
 
 const accountNavItems: NavItem[] = [
@@ -106,15 +105,6 @@ export const Sidebar: React.FC = () => {
           })}
         </div>
       </nav>
-
-      {/* Support Section */}
-      <div className="p-6 mt-auto border-t border-gray-200/50 dark:border-gray-800/50">
-        <div className="flex flex-col items-center text-center">
-          <button className="w-full px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-primary to-pink-600 rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300">
-            Book a Call with Us
-          </button>
-        </div>
-      </div>
     </aside>
   );
 };

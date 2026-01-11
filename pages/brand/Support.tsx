@@ -1,5 +1,7 @@
 import React, { useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
+import { supabase } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
@@ -39,11 +41,10 @@ const faqs = [
 ];
 
 export const Support: React.FC = () => {
+  const { user } = useAuth();
   const { showToast } = useToast();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({
-    name: "",
-    email: "",
     subject: "",
     message: "",
   });
@@ -51,21 +52,46 @@ export const Support: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      showToast("Please sign in to submit a support request", "error");
+      return;
+    }
+
+    if (!contactForm.subject.trim() || !contactForm.message.trim()) {
+      showToast("Please fill in all fields", "error");
+      return;
+    }
+
     setSubmitting(true);
 
-    // In a real app, this would send to a backend
-    setTimeout(() => {
+    try {
+      const { data, error } = await supabase.functions.invoke("send-support-email", {
+        body: {
+          subject: contactForm.subject,
+          message: contactForm.message,
+          userId: user.id,
+        },
+      });
+
+      if (error) throw error;
+
       showToast(
-        "Thank you for your message! We'll get back to you soon.",
+        "Support request sent successfully! We'll get back to you soon.",
         "success"
       );
-      setContactForm({ name: "", email: "", subject: "", message: "" });
+      setContactForm({ subject: "", message: "" });
+    } catch (error) {
+      console.error("Error sending support request:", error);
+      showToast("Failed to send support request. Please try again.", "error");
+    } finally {
       setSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
+      
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
           Support & Guides
@@ -75,8 +101,78 @@ export const Support: React.FC = () => {
         </p>
       </div>
 
+      {/* Contact Form */}
+      <Card className="p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-pink-500/20 flex items-center justify-center">
+            <Icon name="support_agent" className="text-2xl text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Contact Support
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Need help? Send us a message and we'll get back to you soon.
+            </p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Subject <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={contactForm.subject}
+              onChange={(e) =>
+                setContactForm({ ...contactForm, subject: e.target.value })
+              }
+              placeholder="Brief description of your issue"
+              disabled={submitting}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Message <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={contactForm.message}
+              onChange={(e) =>
+                setContactForm({ ...contactForm, message: e.target.value })
+              }
+              placeholder="Please describe your issue in detail..."
+              rows={6}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all resize-none"
+              disabled={submitting}
+              required
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+              Your profile information will be automatically included in the support request.
+            </p>
+          </div>
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={submitting}>
+              {submitting ? (
+                <>
+                  <Icon name="hourglass_empty" className="text-lg mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Icon name="send" className="text-lg mr-2" />
+                  Send Support Request
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
       {/* FAQs Section */}
-      <div className="mb-12">
+      <div className="mb-12 mt-12">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
           Frequently Asked Questions
         </h2>
@@ -107,103 +203,6 @@ export const Support: React.FC = () => {
               </div>
             </Card>
           ))}
-        </div>
-      </div>
-
-      {/* Contact Form */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          Contact Support
-        </h2>
-        <Card>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Name"
-                value={contactForm.name}
-                onChange={(e) =>
-                  setContactForm({ ...contactForm, name: e.target.value })
-                }
-                required
-                icon="person"
-              />
-              <Input
-                label="Email"
-                type="email"
-                value={contactForm.email}
-                onChange={(e) =>
-                  setContactForm({ ...contactForm, email: e.target.value })
-                }
-                required
-                icon="email"
-              />
-            </div>
-            <Input
-              label="Subject"
-              value={contactForm.subject}
-              onChange={(e) =>
-                setContactForm({ ...contactForm, subject: e.target.value })
-              }
-              required
-              icon="subject"
-            />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Message
-                <span className="text-red-500 ml-1">*</span>
-              </label>
-              <textarea
-                value={contactForm.message}
-                onChange={(e) =>
-                  setContactForm({ ...contactForm, message: e.target.value })
-                }
-                required
-                rows={5}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-primary focus:border-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 transition-colors"
-                placeholder="How can we help you?"
-              />
-            </div>
-            <Button type="submit" variant="primary" loading={submitting}>
-              Send Message
-            </Button>
-          </form>
-        </Card>
-      </div>
-
-      {/* Troubleshooting */}
-      <div className="mt-12">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-          Troubleshooting
-        </h2>
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <div className="flex items-start gap-3">
-              <Icon name="account_circle" className="text-3xl text-primary" />
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                  Account Access Issues
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  If you're having trouble logging in, try resetting your
-                  password or contact support using the form above.
-                </p>
-              </div>
-            </div>
-          </Card>
-          <Card>
-            <div className="flex items-start gap-3">
-              <Icon name="verified" className="text-3xl text-primary" />
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-white mb-1">
-                  Verification Problems
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Agency verification is automatic. If you see unverified
-                  agencies, they're still being processed.
-                </p>
-              </div>
-            </div>
-          </Card>
         </div>
       </div>
     </div>

@@ -121,7 +121,6 @@ export interface Proposal {
   description?: string;
   amount: number;
   currency: string;
-  platformFee: number;
   status: ProposalStatus;
   createdAt: string;
   updatedAt: string;
@@ -160,7 +159,6 @@ export interface Job {
   description?: string;
   amount: number;
   currency: string;
-  platformFee: number;
   status: JobStatus;
   // Milestone support
   hasMilestones: boolean;

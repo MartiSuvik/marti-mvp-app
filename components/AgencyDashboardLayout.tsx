@@ -1,6 +1,7 @@
 import React from "react";
 import { AgencySidebar } from "./AgencySidebar";
 import { Header } from "./Header";
+import { SleekplanWidget } from "./FeedbackWidget";
 
 interface AgencyDashboardLayoutProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ export const AgencyDashboardLayout: React.FC<AgencyDashboardLayoutProps> = ({
           {children}
         </div>
       </main>
+      <SleekplanWidget />
     </div>
   );
 };

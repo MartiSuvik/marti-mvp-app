@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { Job, Agency, JobStatus } from "../../types";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -29,6 +29,12 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: str
   paid_out: { label: "Paid Out", icon: "paid", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30" },
   cancelled: { label: "Cancelled", icon: "cancel", color: "text-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
   refunded: { label: "Refunded", icon: "undo", color: "text-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
+  declined: {
+    label: "Declined",
+    icon: "block",
+    color: "text-red-500",
+    bgColor: "bg-red-100 dark:bg-red-900/30"
+  }
 };
 
 // Filter tabs
@@ -36,7 +42,7 @@ const FILTER_TABS = [
   { id: "all", label: "All Jobs" },
   { id: "active", label: "Active", statuses: ["pending", "unfunded", "funded", "in_progress", "review", "revision"] },
   { id: "completed", label: "Completed", statuses: ["approved", "paid_out"] },
-  { id: "cancelled", label: "Cancelled", statuses: ["cancelled", "refunded"] },
+  { id: "cancelled", label: "Cancelled", statuses: ["cancelled", "refunded", "declined"] },
 ];
 
 export const Jobs: React.FC = () => {
@@ -77,9 +83,8 @@ export const Jobs: React.FC = () => {
         agencyId: job.agency_id,
         title: job.title,
         description: job.description,
-        amount: parseFloat(job.amount),
+        amount: parseAmount(job.amount),
         currency: job.currency,
-        platformFee: parseFloat(job.platform_fee || 0),
         status: job.status as JobStatus,
         createdAt: job.created_at,
         updatedAt: job.updated_at,
@@ -120,8 +125,8 @@ export const Jobs: React.FC = () => {
     totalValue: jobs.reduce((sum, j) => sum + j.amount, 0),
   };
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
+  const formatCurrency = (amount: number, currency: string = "EUR") => {
+    return new Intl.NumberFormat("de-DE", {
       style: "currency",
       currency: currency,
     }).format(amount);
@@ -151,7 +156,7 @@ export const Jobs: React.FC = () => {
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-center sm:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl md:text-4xl font-extrabold text-gray-900 dark:text-white tracking-tight mb-2">
             Jobs
@@ -160,10 +165,6 @@ export const Jobs: React.FC = () => {
             Manage your agency projects and payments
           </p>
         </div>
-        <Button variant="primary" onClick={() => navigate("/jobs/create")}>
-          <Icon name="add" className="mr-2" />
-          Create Job
-        </Button>
       </div>
 
       {/* Stats Cards */}
@@ -270,7 +271,7 @@ export const Jobs: React.FC = () => {
 
                   {/* Job Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center justify-between gap-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white truncate">
                           {job.title}

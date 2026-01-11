@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
@@ -78,14 +78,14 @@ export const Dashboard: React.FC = () => {
         // Calculate earnings (from paid_out jobs)
         const paidJobs = jobs.filter((j) => j.status === "paid_out");
         const totalEarnings = paidJobs.reduce(
-          (sum, j) => sum + parseFloat(j.amount),
+          (sum, j) => sum + parseAmount(j.amount),
           0
         );
 
         // Pending payouts (approved but not yet paid)
         const approvedJobs = jobs.filter((j) => j.status === "approved");
         const pendingPayouts = approvedJobs.reduce(
-          (sum, j) => sum + parseFloat(j.amount),
+          (sum, j) => sum + parseAmount(j.amount),
           0
         );
 
@@ -105,9 +105,8 @@ export const Dashboard: React.FC = () => {
           agencyId: j.agency_id,
           title: j.title,
           description: j.description,
-          amount: parseFloat(j.amount),
+          amount: parseAmount(j.amount),
           currency: j.currency,
-          platformFee: parseFloat(j.platform_fee || 0),
           status: j.status,
           createdAt: j.created_at,
           updatedAt: j.updated_at,
@@ -279,7 +278,7 @@ export const Dashboard: React.FC = () => {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="font-semibold text-gray-900 dark:text-white">
-                            ${job.amount.toLocaleString()}
+                            €{job.amount.toLocaleString()}
                           </p>
                           <p className="text-xs text-gray-400">Amount</p>
                         </div>

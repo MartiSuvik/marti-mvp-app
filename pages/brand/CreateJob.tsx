@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { Deal, Agency } from "../../types";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
@@ -28,8 +28,6 @@ interface JobFormData {
   currency: string;
 }
 
-const PLATFORM_FEE_PERCENT = 0.10; // 10%
-
 export const CreateJob: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -50,7 +48,7 @@ export const CreateJob: React.FC = () => {
     title: "",
     description: "",
     amount: "",
-    currency: "USD",
+    currency: "EUR",
   });
 
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
@@ -156,8 +154,7 @@ export const CreateJob: React.FC = () => {
     setLoading(true);
 
     try {
-      const amount = parseFloat(formData.amount);
-      const platformFee = amount * PLATFORM_FEE_PERCENT;
+      const amount = parseAmount(formData.amount);
 
       const { data, error } = await supabase
         .from("jobs")
@@ -169,7 +166,6 @@ export const CreateJob: React.FC = () => {
           description: formData.description.trim() || null,
           amount: amount,
           currency: formData.currency,
-          platform_fee: platformFee,
           status: "pending", // Start as pending, waiting for agency acceptance
         })
         .select()
@@ -187,16 +183,14 @@ export const CreateJob: React.FC = () => {
     }
   };
 
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
+  const formatCurrency = (amount: number, currency: string = "EUR") => {
+    return new Intl.NumberFormat("de-DE", {
       style: "currency",
       currency: currency,
     }).format(amount);
   };
 
-  const amount = parseFloat(formData.amount) || 0;
-  const platformFee = amount * PLATFORM_FEE_PERCENT;
-  const agencyReceives = amount - platformFee;
+  const amount = parseAmount(formData.amount);
 
   // Step indicators
   const steps = [
@@ -403,8 +397,8 @@ export const CreateJob: React.FC = () => {
                   onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
                   className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 dark:text-white"
                 >
-                  <option value="USD">USD ($)</option>
                   <option value="EUR">EUR (€)</option>
+                  <option value="USD">USD ($)</option>
                   <option value="GBP">GBP (£)</option>
                 </select>
               </div>
@@ -414,28 +408,14 @@ export const CreateJob: React.FC = () => {
             {amount > 0 && (
               <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                  Payment Breakdown
+                  Payment Summary
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Job Amount</span>
-                    <span className="font-medium text-gray-900 dark:text-white">
+                    <span className="text-gray-500">Total Amount</span>
+                    <span className="font-bold text-green-600">
                       {formatCurrency(amount, formData.currency)}
                     </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Platform Fee (10%)</span>
-                    <span className="text-gray-600 dark:text-gray-400">
-                      -{formatCurrency(platformFee, formData.currency)}
-                    </span>
-                  </div>
-                  <div className="border-t border-gray-200 dark:border-gray-700 pt-2">
-                    <div className="flex justify-between">
-                      <span className="font-medium text-gray-900 dark:text-white">Agency Receives</span>
-                      <span className="font-bold text-green-600">
-                        {formatCurrency(agencyReceives, formData.currency)}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -502,21 +482,9 @@ export const CreateJob: React.FC = () => {
               </h3>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Job Amount</span>
-                  <span className="font-semibold text-gray-900 dark:text-white">
-                    {formatCurrency(amount, formData.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Platform Fee (10%)</span>
-                  <span className="text-gray-600 dark:text-gray-400">
-                    -{formatCurrency(platformFee, formData.currency)}
-                  </span>
-                </div>
-                <div className="flex justify-between border-t border-gray-200 dark:border-gray-700 pt-2">
-                  <span className="font-medium text-gray-900 dark:text-white">Agency Receives</span>
+                  <span className="font-medium text-gray-900 dark:text-white">Total Amount</span>
                   <span className="font-bold text-green-600">
-                    {formatCurrency(agencyReceives, formData.currency)}
+                    {formatCurrency(amount, formData.currency)}
                   </span>
                 </div>
               </div>

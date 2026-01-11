@@ -40,7 +40,7 @@ export const Landing: React.FC = () => {
     {
       question: "Is there a cost to use the platform?",
       answer:
-        "The matching service is free. You only pay the agencies you choose to work with. No upfront fees, no commitments—just smart matching.",
+        "The matching service is free. No upfront fees, no commitments. 10% service fee is applied only on successfully revenue growth.",
     },
     {
       question: "How do I know an agency is right for my business?",
@@ -183,7 +183,7 @@ export const Landing: React.FC = () => {
               },
               {
                 quote:
-                  "Scaled from $15k to $85k/month ad spend with confidence 📈 The escrow system made it risk-free to try new agencies.",
+                  "Scaled from €15k to €85k/month ad spend with confidence 📈 The escrow system made it risk-free to try new agencies.",
                 name: "Maria R.",
                 role: "DTC Brand",
                 emoji: "",
@@ -292,7 +292,7 @@ export const Landing: React.FC = () => {
                 Complete Quick Onboarding
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                Answer 5 strategic questions.
+                Answer 15 strategic questions.
               </p>
               <button
                 onClick={() => navigate("/onboarding")}
@@ -347,8 +347,8 @@ export const Landing: React.FC = () => {
           <div className="grid md:grid-cols-3 gap-8 text-center">
             {[
               { value: "10+", label: "Verified Agencies" },
-              { value: "1,000+", label: "Successful Matches" },
-              { value: "95%", label: "Match Satisfaction" },
+              { value: "300+", label: "Successful Matches" },
+              { value: "99%", label: "Match Satisfaction" },
             ].map((stat, index) => (
               <div key={index}>
                 <div className="text-4xl md:text-5xl font-bold text-primary mb-1">

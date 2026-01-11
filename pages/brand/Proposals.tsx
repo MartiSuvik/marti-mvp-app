@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { supabase, parseAmount } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useToast } from "../../contexts/ToastContext";
 import { Icon } from "../../components/Icon";
@@ -63,9 +63,8 @@ export default function Proposals() {
         businessId: p.business_id,
         title: p.title,
         description: p.description,
-        amount: parseFloat(p.amount),
+        amount: parseAmount(p.amount),
         currency: p.currency,
-        platformFee: parseFloat(p.platform_fee),
         status: p.status,
         createdAt: p.created_at,
         updatedAt: p.updated_at,
@@ -170,7 +169,7 @@ export default function Proposals() {
               <Icon name="payments" className="text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold">${stats.totalValue.toLocaleString()}</p>
+              <p className="text-2xl font-bold">€{stats.totalValue.toLocaleString()}</p>
               <p className="text-sm text-gray-500">Total Value</p>
             </div>
           </div>
@@ -230,7 +229,7 @@ export default function Proposals() {
                     <img
                       src={proposal.agency.logoUrl}
                       alt={proposal.agency.name}
-                      className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                      className="w-12 h-12 rounded-lg object-contain flex-shrink-0 p-1 bg-white dark:bg-gray-800"
                     />
                   ) : (
                     <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary to-pink-600 flex items-center justify-center flex-shrink-0">
@@ -278,7 +277,7 @@ export default function Proposals() {
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Amount</p>
                     <p className="text-2xl font-bold text-primary">
-                      ${proposal.amount.toLocaleString()}
+                      €{proposal.amount.toLocaleString()}
                     </p>
                   </div>
                   {proposal.status === "sent" && (
