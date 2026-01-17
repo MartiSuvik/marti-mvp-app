@@ -7,19 +7,17 @@ import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
 import { Job, JobStatus } from "../../types";
 
+// NOTE: Removed unfunded, funded, refunded - payments happen at work approval time
 const STATUS_CONFIG: Record<JobStatus, { label: string; color: string; bgColor: string; icon: string }> = {
   draft: { label: "Draft", color: "text-gray-500", bgColor: "bg-gray-100", icon: "edit" },
   pending: { label: "Pending Acceptance", color: "text-yellow-600", bgColor: "bg-yellow-50", icon: "hourglass_empty" },
   declined: { label: "Declined", color: "text-red-500", bgColor: "bg-red-50", icon: "cancel" },
-  unfunded: { label: "Awaiting Payment", color: "text-orange-500", bgColor: "bg-orange-50", icon: "payment" },
-  funded: { label: "Ready to Start", color: "text-blue-600", bgColor: "bg-blue-50", icon: "play_circle" },
   in_progress: { label: "In Progress", color: "text-indigo-600", bgColor: "bg-indigo-50", icon: "pending" },
   review: { label: "Under Review", color: "text-purple-600", bgColor: "bg-purple-50", icon: "rate_review" },
   revision: { label: "Revision Needed", color: "text-amber-600", bgColor: "bg-amber-50", icon: "edit_note" },
   approved: { label: "Approved", color: "text-green-600", bgColor: "bg-green-50", icon: "check_circle" },
   paid_out: { label: "Paid", color: "text-emerald-600", bgColor: "bg-emerald-50", icon: "paid" },
   cancelled: { label: "Cancelled", color: "text-gray-500", bgColor: "bg-gray-100", icon: "block" },
-  refunded: { label: "Refunded", color: "text-red-500", bgColor: "bg-red-50", icon: "money_off" },
 };
 
 type FilterTab = "all" | "pending" | "active" | "completed";

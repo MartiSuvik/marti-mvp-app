@@ -17,18 +17,16 @@ import { AgencyLogo } from "../../components/AgencyLogo";
  */
 
 // Status configuration with colors and icons
+// NOTE: Removed unfunded, funded, refunded - payments happen at work approval time
 const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: string; bgColor: string }> = {
   draft: { label: "Draft", icon: "edit_note", color: "text-gray-500", bgColor: "bg-gray-100 dark:bg-gray-700" },
   pending: { label: "Pending", icon: "hourglass_empty", color: "text-yellow-500", bgColor: "bg-yellow-100 dark:bg-yellow-900/30" },
-  unfunded: { label: "Awaiting Payment", icon: "payments", color: "text-orange-500", bgColor: "bg-orange-100 dark:bg-orange-900/30" },
-  funded: { label: "Funded", icon: "account_balance_wallet", color: "text-blue-500", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
   in_progress: { label: "In Progress", icon: "engineering", color: "text-indigo-500", bgColor: "bg-indigo-100 dark:bg-indigo-900/30" },
   review: { label: "In Review", icon: "rate_review", color: "text-purple-500", bgColor: "bg-purple-100 dark:bg-purple-900/30" },
   revision: { label: "Revision Requested", icon: "replay", color: "text-amber-500", bgColor: "bg-amber-100 dark:bg-amber-900/30" },
   approved: { label: "Approved", icon: "thumb_up", color: "text-green-500", bgColor: "bg-green-100 dark:bg-green-900/30" },
   paid_out: { label: "Paid Out", icon: "paid", color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30" },
   cancelled: { label: "Cancelled", icon: "cancel", color: "text-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
-  refunded: { label: "Refunded", icon: "undo", color: "text-red-500", bgColor: "bg-red-100 dark:bg-red-900/30" },
   declined: {
     label: "Declined",
     icon: "block",
@@ -40,9 +38,9 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: str
 // Filter tabs
 const FILTER_TABS = [
   { id: "all", label: "All Jobs" },
-  { id: "active", label: "Active", statuses: ["pending", "unfunded", "funded", "in_progress", "review", "revision"] },
+  { id: "active", label: "Active", statuses: ["pending", "in_progress", "review", "revision"] },
   { id: "completed", label: "Completed", statuses: ["approved", "paid_out"] },
-  { id: "cancelled", label: "Cancelled", statuses: ["cancelled", "refunded", "declined"] },
+  { id: "cancelled", label: "Cancelled", statuses: ["cancelled", "declined"] },
 ];
 
 export const Jobs: React.FC = () => {
@@ -121,7 +119,7 @@ export const Jobs: React.FC = () => {
   // Get stats for header
   const stats = {
     total: jobs.length,
-    active: jobs.filter(j => ["pending", "unfunded", "funded", "in_progress", "review", "revision"].includes(j.status)).length,
+    active: jobs.filter(j => ["pending", "in_progress", "review", "revision"].includes(j.status)).length,
     totalValue: jobs.reduce((sum, j) => sum + j.amount, 0),
   };
 

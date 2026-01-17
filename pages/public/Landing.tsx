@@ -10,12 +10,12 @@ export const Landing: React.FC = () => {
     {
       question: "Why should I choose ScalingAd?",
       answer:
-        "ScalingAd removes the guesswork from finding an agency. Our AI-powered matching considers your specific needs—budget, platforms, industry, and goals—to connect you with agencies that have proven success in your exact situation. Plus, our escrow system protects your investment.",
+        "ScalingAd removes the guesswork from finding an agency. Our AI-powered matching considers your specific needs—budget, platforms, industry, and goals—to connect you with agencies that have proven success in your exact situation. Our milestone-based payment system ensures you pay only when work is approved.",
     },
     {
       question: "What's my guarantee as a business?",
       answer:
-        "Your funds are held in escrow until work is delivered and approved. If an agency doesn't meet the agreed deliverables, you get your money back. We also verify all agencies before they join our network, checking their track record, client reviews, and actual results.",
+        "You only pay when work is delivered and approved. Pay per milestone as agencies complete each phase of work. We verify all agencies before they join our network, checking their track record, client reviews, and actual results.",
     },
     {
       question: "How does the matching work?",
@@ -50,12 +50,12 @@ export const Landing: React.FC = () => {
     {
       question: "What happens after I get matched?",
       answer:
-        "You'll receive 3 top agency recommendations. From there, you can review their profiles, schedule calls, and choose the best fit. Once you select an agency, you'll work directly with them while we handle payments through our secure escrow system.",
+        "You'll receive 3 top agency recommendations. From there, you can review their profiles, schedule calls, and choose the best fit. Once you select an agency, you'll work directly with them while we coordinate milestones and payments.",
     },
     {
       question: "Can I switch agencies if it's not working out?",
       answer:
-        "Absolutely. If an engagement isn't meeting expectations, you can pause the project, request a new match, or end the relationship. Our escrow system ensures you only pay for work that's been delivered and approved.",
+        "Absolutely. If an engagement isn't meeting expectations, you can pause the project, request a new match, or end the relationship. Our milestone-based payment system means you only pay for completed and approved work.",
     },
   ];
 
@@ -183,7 +183,7 @@ export const Landing: React.FC = () => {
               },
               {
                 quote:
-                  "Scaled from €15k to €85k/month ad spend with confidence 📈 The escrow system made it risk-free to try new agencies.",
+                  "Scaled from €15k to €85k/month ad spend with confidence 📈 The milestone-based approach made it risk-free to try new agencies.",
                 name: "Maria R.",
                 role: "DTC Brand",
                 emoji: "",
@@ -395,10 +395,10 @@ export const Landing: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                    Escrow Protection
+                    Milestone Payments
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400 text-sm">
-                    Payments held until work is confirmed complete.
+                    Pay only when work is delivered and approved.
                   </p>
                 </div>
               </div>

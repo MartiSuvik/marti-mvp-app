@@ -8,6 +8,9 @@ import { Button } from "../../components/ui/Button";
 import { Icon } from "../../components/Icon";
 import { Job, JobStatus, JobPayment, JobPayout, Milestone, MilestoneStatus } from "../../types";
 
+// Status configuration - Direct Charges Model
+// NOTE: No 'unfunded' or 'funded' states - work starts immediately after acceptance
+// Payment happens when business approves completed work
 const STATUS_CONFIG: Record<
   JobStatus,
   { label: string; color: string; bgColor: string; icon: string; description: string }
@@ -33,20 +36,6 @@ const STATUS_CONFIG: Record<
     icon: "cancel",
     description: "You declined this project.",
   },
-  unfunded: {
-    label: "Awaiting Payment",
-    color: "text-orange-500",
-    bgColor: "bg-orange-50",
-    icon: "payment",
-    description: "Waiting for the business to fund this project.",
-  },
-  funded: {
-    label: "Ready to Start",
-    color: "text-blue-600",
-    bgColor: "bg-blue-50",
-    icon: "play_circle",
-    description: "Payment received! You can now start working on this project.",
-  },
   in_progress: {
     label: "In Progress",
     color: "text-indigo-600",
@@ -69,18 +58,18 @@ const STATUS_CONFIG: Record<
     description: "Business requested changes. Please revise and resubmit.",
   },
   approved: {
-    label: "Approved",
+    label: "Approved - Payment Pending",
     color: "text-green-600",
     bgColor: "bg-green-50",
     icon: "check_circle",
-    description: "Work approved! Payment is being processed.",
+    description: "Work approved! Business is completing payment.",
   },
   paid_out: {
     label: "Paid",
     color: "text-emerald-600",
     bgColor: "bg-emerald-50",
     icon: "paid",
-    description: "Payment completed. Check your Stripe dashboard.",
+    description: "Payment received! Funds available per Stripe payout schedule.",
   },
   cancelled: {
     label: "Cancelled",
@@ -88,13 +77,6 @@ const STATUS_CONFIG: Record<
     bgColor: "bg-gray-100",
     icon: "block",
     description: "This project has been cancelled.",
-  },
-  refunded: {
-    label: "Refunded",
-    color: "text-red-500",
-    bgColor: "bg-red-50",
-    icon: "money_off",
-    description: "Payment was refunded to the business.",
   },
 };
 
@@ -282,9 +264,11 @@ export const ProjectDetail: React.FC = () => {
     }
   };
 
+  // Direct charges model: Accept job and start working immediately
+  // No need to wait for upfront payment - payment happens when work is approved
   const handleAcceptJob = async () => {
-    await updateJobStatus("unfunded");
-    showToast("Job accepted! Waiting for business to fund the project.", "success");
+    await updateJobStatus("in_progress");
+    showToast("Job accepted! You can start working now. Payment will be collected when the business approves your work.", "success");
   };
 
   const handleDeclineJob = async () => {
@@ -330,8 +314,8 @@ export const ProjectDetail: React.FC = () => {
 
       if (error) throw error;
 
-      // Also update job status to in_progress if needed
-      if (job?.status === "funded") {
+      // Also update job status to in_progress if it's pending
+      if (job?.status === "pending") {
         await supabase
           .from("jobs")
           .update({ status: "in_progress", updated_at: new Date().toISOString() })
@@ -487,7 +471,8 @@ export const ProjectDetail: React.FC = () => {
 
               <div className="space-y-3">
                 {milestones.map((milestone, index) => {
-                  const canStart = milestone.status === "pending" && ["funded", "in_progress"].includes(job.status);
+                  // Direct charges: can start milestone once job is in_progress
+                  const canStart = milestone.status === "pending" && job.status === "in_progress";
                   const canSubmit = milestone.status === "in_progress";
                   const canResubmit = milestone.status === "revision";
                   const isLoading = actionLoading?.includes(milestone.id);
@@ -616,15 +601,18 @@ export const ProjectDetail: React.FC = () => {
                     onClick={handleAcceptJob}
                     disabled={actionLoading !== null}
                   >
-                    {actionLoading === "unfunded" ? (
+                    {actionLoading === "in_progress" ? (
                       "Processing..."
                     ) : (
                       <>
                         <Icon name="check_circle" className="mr-2" />
-                        Accept Job
+                        Accept & Start Work
                       </>
                     )}
                   </Button>
+                  <p className="text-xs text-gray-500 text-center">
+                    Payment will be collected when the business approves your completed work
+                  </p>
                   <Button
                     variant="outline"
                     className="w-full text-red-600 border-red-200 hover:bg-red-50"
@@ -635,25 +623,6 @@ export const ProjectDetail: React.FC = () => {
                     Decline Job
                   </Button>
                 </>
-              )}
-
-              {/* Funded - Start Work */}
-              {job.status === "funded" && (
-                <Button
-                  variant="primary"
-                  className="w-full"
-                  onClick={handleStartWork}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === "in_progress" ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      <Icon name="play_arrow" className="mr-2" />
-                      Start Work
-                    </>
-                  )}
-                </Button>
               )}
 
               {/* In Progress - Submit for Review */}
@@ -695,31 +664,27 @@ export const ProjectDetail: React.FC = () => {
               )}
 
               {/* Waiting states */}
-              {job.status === "unfunded" && (
-                <div className="text-center py-4 text-gray-500">
-                  <Icon name="hourglass_empty" className="text-3xl mb-2" />
-                  <p>Waiting for business to fund the project...</p>
-                </div>
-              )}
-
               {job.status === "review" && (
                 <div className="text-center py-4 text-gray-500">
                   <Icon name="rate_review" className="text-3xl mb-2" />
-                  <p>Waiting for business to review your work...</p>
+                  <p>Waiting for business to review and approve your work...</p>
+                  <p className="text-xs mt-1">Once approved, they will pay directly to your Stripe account.</p>
                 </div>
               )}
 
               {job.status === "approved" && (
                 <div className="text-center py-4 text-green-600">
                   <Icon name="check_circle" className="text-3xl mb-2" />
-                  <p>Work approved! Payment is being processed.</p>
+                  <p>Work approved! Waiting for payment to complete.</p>
+                  <p className="text-xs mt-1 text-gray-500">The business is completing payment now.</p>
                 </div>
               )}
 
               {job.status === "paid_out" && (
                 <div className="text-center py-4 text-emerald-600">
                   <Icon name="paid" className="text-3xl mb-2" />
-                  <p>Payment received! Check your Stripe dashboard.</p>
+                  <p>Payment received!</p>
+                  <p className="text-xs mt-1 text-gray-500">Funds available per Stripe payout schedule (~7 days).</p>
                 </div>
               )}
             </div>

@@ -1,5 +1,11 @@
 // Supabase Edge Function: stripe-webhook
-// Handles incoming Stripe webhook events for Connect payments and Platform invoices
+// Handles incoming Stripe webhook events for DIRECT CHARGES model
+// 
+// DIRECT CHARGES ARCHITECTURE:
+// - Payments are created ON the connected account (agency)
+// - Events fire on the connected account AND platform (via Connect webhooks)
+// - Platform never holds funds, only tracks payment status
+// - No transfer events needed (no platform-to-agency transfers)
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -19,7 +25,9 @@ const corsHeaders = {
 
 // Helper function to verify webhook with multiple secrets (async for Deno)
 async function verifyWebhookSignature(body: string, signature: string): Promise<Stripe.Event | null> {
+  // Connect webhook secret handles events from connected accounts
   const connectSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
+  // Platform secret for account-level events (optional fallback)
   const platformSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET_PLATFORM") || "";
   
   const secrets = [connectSecret, platformSecret].filter(Boolean);
@@ -63,21 +71,26 @@ serve(async (req) => {
     // Create Supabase client with service role for admin access
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log(`Processing event: ${event.type}`);
+    // For Connect webhooks, event.account contains the connected account ID
+    const connectedAccountId = (event as any).account || null;
+    console.log(`Processing event: ${event.type}${connectedAccountId ? ` (account: ${connectedAccountId})` : ''}`);
 
     // Handle different event types
     switch (event.type) {
-      // Checkout Session completed
+      // =================================================================
+      // DIRECT CHARGE PAYMENT EVENTS
+      // These fire on the connected account when a direct charge completes
+      // =================================================================
+      
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutSessionCompleted(supabase, session);
+        await handleCheckoutSessionCompleted(supabase, session, connectedAccountId);
         break;
       }
 
-      // Payment Intent events
       case "payment_intent.succeeded": {
         const paymentIntent = event.data.object as Stripe.PaymentIntent;
-        await handlePaymentIntentSucceeded(supabase, paymentIntent);
+        await handlePaymentIntentSucceeded(supabase, paymentIntent, connectedAccountId);
         break;
       }
 
@@ -87,20 +100,11 @@ serve(async (req) => {
         break;
       }
 
-      // Transfer events (platform → agency)
-      case "transfer.paid": {
-        const transfer = event.data.object as Stripe.Transfer;
-        await handleTransferPaid(supabase, transfer);
-        break;
-      }
+      // =================================================================
+      // CONNECTED ACCOUNT EVENTS
+      // Account status changes for agencies
+      // =================================================================
 
-      case "transfer.failed": {
-        const transfer = event.data.object as Stripe.Transfer;
-        await handleTransferFailed(supabase, transfer);
-        break;
-      }
-
-      // Connected account events
       case "account.updated": {
         const account = event.data.object as Stripe.Account;
         await handleAccountUpdated(supabase, account);
@@ -113,29 +117,42 @@ serve(async (req) => {
         break;
       }
 
-      // Refund events
+      // =================================================================
+      // DISPUTE EVENTS (Direct charges = agency handles disputes)
+      // We track for visibility but agency is responsible
+      // =================================================================
+
+      case "charge.dispute.created": {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeCreated(supabase, dispute, connectedAccountId);
+        break;
+      }
+
+      case "charge.dispute.closed": {
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeClosed(supabase, dispute, connectedAccountId);
+        break;
+      }
+
+      // =================================================================
+      // REFUND EVENTS
+      // Direct charges = agency processes refunds
+      // =================================================================
+
       case "charge.refunded": {
         const charge = event.data.object as Stripe.Charge;
-        await handleChargeRefunded(supabase, charge);
+        await handleChargeRefunded(supabase, charge, connectedAccountId);
         break;
       }
 
-      // Invoice events (for Stripe Invoicing)
-      case "invoice.paid": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaid(supabase, invoice);
-        break;
-      }
+      // =================================================================
+      // DEPRECATED EVENTS (No longer used in direct charge model)
+      // Kept for logging only - transfers don't exist in this model
+      // =================================================================
 
-      case "invoice.payment_failed": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaymentFailed(supabase, invoice);
-        break;
-      }
-
-      case "invoice.voided": {
-        const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoiceVoided(supabase, invoice);
+      case "transfer.paid":
+      case "transfer.failed": {
+        console.log(`DEPRECATED: ${event.type} - Direct charge model does not use transfers`);
         break;
       }
 
@@ -144,7 +161,7 @@ serve(async (req) => {
     }
 
     // Log all events to ledger
-    await logToLedger(supabase, event);
+    await logToLedger(supabase, event, connectedAccountId);
 
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -159,115 +176,222 @@ serve(async (req) => {
   }
 });
 
-// Handler functions
+// =================================================================
+// HANDLER FUNCTIONS FOR DIRECT CHARGES
+// =================================================================
 
-async function handleCheckoutSessionCompleted(supabase: any, session: Stripe.Checkout.Session) {
+async function handleCheckoutSessionCompleted(
+  supabase: any, 
+  session: Stripe.Checkout.Session,
+  connectedAccountId: string | null
+) {
+  const paymentType = session.metadata?.payment_type;
   const jobId = session.metadata?.job_id;
+  const milestoneId = session.metadata?.milestone_id;
+
   if (!jobId) {
     console.log("No job_id in checkout session metadata");
     return;
   }
 
-  // If payment was successful, update the job status
-  if (session.payment_status === "paid") {
-    // Update job_payments record with payment intent ID
-    if (session.payment_intent) {
-      await supabase
-        .from("job_payments")
-        .update({
-          status: "succeeded",
-          stripe_payment_intent_id: session.payment_intent as string,
-        })
-        .eq("job_id", jobId);
-    }
+  // Only process paid sessions
+  if (session.payment_status !== "paid") {
+    console.log(`Checkout session ${session.id} not paid yet: ${session.payment_status}`);
+    return;
+  }
 
-    // Update job status to funded
-    await supabase
-      .from("jobs")
-      .update({
-        status: "funded",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", jobId)
-      .eq("status", "unfunded"); // Only update if still unfunded
-
-    console.log(`Checkout completed for job ${jobId}`);
+  // Handle based on payment type
+  if (paymentType === "milestone_payment" && milestoneId) {
+    // Milestone payment completed
+    await handleMilestonePaymentCompleted(supabase, session, milestoneId, jobId);
+  } else {
+    // Full job payment completed
+    await handleJobPaymentCompleted(supabase, session, jobId);
   }
 }
 
-async function handlePaymentIntentSucceeded(supabase: any, paymentIntent: Stripe.PaymentIntent) {
+async function handleMilestonePaymentCompleted(
+  supabase: any,
+  session: Stripe.Checkout.Session,
+  milestoneId: string,
+  jobId: string
+) {
+  const paymentIntentId = session.payment_intent as string;
+
+  // Update milestone to paid
+  await supabase
+    .from("milestones")
+    .update({
+      status: "paid",
+      stripe_payment_intent_id: paymentIntentId,
+      stripe_checkout_session_id: session.id,
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", milestoneId);
+
+  // Update job's total released amount
+  const { data: milestone } = await supabase
+    .from("milestones")
+    .select("amount")
+    .eq("id", milestoneId)
+    .single();
+
+  if (milestone) {
+    // Increment total_released on job
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("total_released")
+      .eq("id", jobId)
+      .single();
+
+    const newTotal = (job?.total_released || 0) + milestone.amount;
+    
+    await supabase
+      .from("jobs")
+      .update({
+        total_released: newTotal,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", jobId);
+  }
+
+  // Check if all milestones are now paid
+  const { data: allMilestones } = await supabase
+    .from("milestones")
+    .select("status")
+    .eq("job_id", jobId);
+
+  const allPaid = allMilestones?.every((m: any) => m.status === "paid");
+  
+  if (allPaid) {
+    // Update job to paid_out
+    await supabase
+      .from("jobs")
+      .update({
+        status: "paid_out",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", jobId);
+    
+    console.log(`All milestones paid - job ${jobId} marked as paid_out`);
+  }
+
+  console.log(`Milestone ${milestoneId} payment completed for job ${jobId}`);
+}
+
+async function handleJobPaymentCompleted(
+  supabase: any,
+  session: Stripe.Checkout.Session,
+  jobId: string
+) {
+  const paymentIntentId = session.payment_intent as string;
+
+  // Create/update job_payments record
+  await supabase
+    .from("job_payments")
+    .upsert({
+      job_id: jobId,
+      stripe_payment_intent_id: paymentIntentId,
+      amount: (session.amount_total || 0) / 100,
+      status: "succeeded",
+    }, { onConflict: "job_id" });
+
+  // Update job status to paid_out (direct charge = immediate payment)
+  await supabase
+    .from("jobs")
+    .update({
+      status: "paid_out",
+      total_released: (session.amount_total || 0) / 100,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", jobId);
+
+  console.log(`Job ${jobId} payment completed via direct charge`);
+}
+
+async function handlePaymentIntentSucceeded(
+  supabase: any, 
+  paymentIntent: Stripe.PaymentIntent,
+  connectedAccountId: string | null
+) {
+  const paymentType = paymentIntent.metadata?.payment_type;
   const jobId = paymentIntent.metadata?.job_id;
+  const milestoneId = paymentIntent.metadata?.milestone_id;
+
   if (!jobId) {
     console.log("No job_id in payment intent metadata");
     return;
   }
 
-  // Update job_payments record
-  await supabase
-    .from("job_payments")
-    .update({
-      status: "succeeded",
-      stripe_charge_id: paymentIntent.latest_charge as string,
-    })
-    .eq("stripe_payment_intent_id", paymentIntent.id);
+  // Get charge ID
+  const chargeId = paymentIntent.latest_charge as string;
 
-  // Update job status to funded
-  await supabase
-    .from("jobs")
-    .update({
-      status: "funded",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", jobId);
+  if (paymentType === "milestone_payment" && milestoneId) {
+    // Update milestone
+    await supabase
+      .from("milestones")
+      .update({
+        status: "paid",
+        stripe_payment_intent_id: paymentIntent.id,
+        stripe_charge_id: chargeId,
+        paid_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", milestoneId);
 
-  console.log(`Job ${jobId} funded successfully`);
+    console.log(`Milestone ${milestoneId} paid via PaymentIntent`);
+  } else {
+    // Update job_payments record
+    await supabase
+      .from("job_payments")
+      .upsert({
+        job_id: jobId,
+        stripe_payment_intent_id: paymentIntent.id,
+        stripe_charge_id: chargeId,
+        amount: paymentIntent.amount / 100,
+        status: "succeeded",
+      }, { onConflict: "stripe_payment_intent_id" });
+
+    // Update job status
+    await supabase
+      .from("jobs")
+      .update({
+        status: "paid_out",
+        total_released: paymentIntent.amount / 100,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", jobId);
+
+    console.log(`Job ${jobId} payment succeeded via direct charge`);
+  }
 }
 
 async function handlePaymentIntentFailed(supabase: any, paymentIntent: Stripe.PaymentIntent) {
   const jobId = paymentIntent.metadata?.job_id;
-  if (!jobId) return;
+  const milestoneId = paymentIntent.metadata?.milestone_id;
 
-  // Update job_payments record
-  await supabase
-    .from("job_payments")
-    .update({ status: "failed" })
-    .eq("stripe_payment_intent_id", paymentIntent.id);
-
-  console.log(`Payment failed for job ${jobId}`);
-}
-
-async function handleTransferPaid(supabase: any, transfer: Stripe.Transfer) {
-  const jobId = transfer.metadata?.job_id;
-  if (!jobId) return;
-
-  // Update job_payouts record
-  await supabase
-    .from("job_payouts")
-    .update({ status: "paid" })
-    .eq("stripe_transfer_id", transfer.id);
-
-  // Update job status to paid_out
-  await supabase
-    .from("jobs")
-    .update({
-      status: "paid_out",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", jobId);
-
-  console.log(`Payout completed for job ${jobId}`);
-}
-
-async function handleTransferFailed(supabase: any, transfer: Stripe.Transfer) {
-  const jobId = transfer.metadata?.job_id;
-  if (!jobId) return;
-
-  await supabase
-    .from("job_payouts")
-    .update({ status: "failed" })
-    .eq("stripe_transfer_id", transfer.id);
-
-  console.log(`Transfer failed for job ${jobId}`);
+  if (milestoneId) {
+    // Log failure for milestone
+    await supabase.from("ledger_entries").insert({
+      job_id: jobId,
+      event_type: "milestone_payment_failed",
+      details: {
+        milestone_id: milestoneId,
+        payment_intent_id: paymentIntent.id,
+        error: paymentIntent.last_payment_error?.message,
+      },
+    });
+    console.log(`Milestone ${milestoneId} payment failed`);
+  } else if (jobId) {
+    // Update job_payments record
+    await supabase
+      .from("job_payments")
+      .update({ status: "failed" })
+      .eq("stripe_payment_intent_id", paymentIntent.id);
+    
+    console.log(`Payment failed for job ${jobId}`);
+  }
 }
 
 async function handleAccountUpdated(supabase: any, account: Stripe.Account) {
@@ -303,202 +427,119 @@ async function handleAccountDeauthorized(supabase: any, account: Stripe.Account)
   console.log(`Account ${account.id} deauthorized`);
 }
 
-async function handleChargeRefunded(supabase: any, charge: Stripe.Charge) {
+// =================================================================
+// DISPUTE HANDLERS (Direct charges = agency responsibility)
+// =================================================================
+
+async function handleDisputeCreated(
+  supabase: any, 
+  dispute: Stripe.Dispute,
+  connectedAccountId: string | null
+) {
+  // Find the job via the charge metadata
+  const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
+  
+  // Log dispute for visibility - agency handles resolution
+  await supabase.from("ledger_entries").insert({
+    event_type: "dispute_created",
+    details: {
+      dispute_id: dispute.id,
+      charge_id: chargeId,
+      amount: dispute.amount,
+      currency: dispute.currency,
+      reason: dispute.reason,
+      status: dispute.status,
+      connected_account_id: connectedAccountId,
+      // Note: With direct charges, the agency is responsible for disputes
+      liability: "agency",
+    },
+  });
+
+  console.log(`Dispute ${dispute.id} created on account ${connectedAccountId} - agency responsible`);
+}
+
+async function handleDisputeClosed(
+  supabase: any, 
+  dispute: Stripe.Dispute,
+  connectedAccountId: string | null
+) {
+  await supabase.from("ledger_entries").insert({
+    event_type: "dispute_closed",
+    details: {
+      dispute_id: dispute.id,
+      status: dispute.status,
+      connected_account_id: connectedAccountId,
+    },
+  });
+
+  console.log(`Dispute ${dispute.id} closed with status: ${dispute.status}`);
+}
+
+async function handleChargeRefunded(
+  supabase: any, 
+  charge: Stripe.Charge,
+  connectedAccountId: string | null
+) {
+  // With direct charges, refunds are processed by the agency
+  // We just track for visibility
+  
   const paymentIntentId = charge.payment_intent as string;
-  if (!paymentIntentId) return;
+  const metadata = charge.metadata || {};
+  const jobId = metadata.job_id;
+  const milestoneId = metadata.milestone_id;
 
-  // Find the job via payment
-  const { data: payment } = await supabase
-    .from("job_payments")
-    .select("job_id")
-    .eq("stripe_payment_intent_id", paymentIntentId)
-    .single();
+  if (milestoneId) {
+    // Milestone refund - update milestone status
+    await supabase
+      .from("milestones")
+      .update({
+        status: "revision", // Or create a "refunded" status if needed
+        updated_at: new Date().toISOString(),
+      })
+      .eq("stripe_payment_intent_id", paymentIntentId);
 
-  if (payment?.job_id) {
-    // Update payment status
+    await supabase.from("ledger_entries").insert({
+      job_id: jobId,
+      event_type: "milestone_refunded",
+      details: {
+        milestone_id: milestoneId,
+        charge_id: charge.id,
+        amount_refunded: charge.amount_refunded,
+        connected_account_id: connectedAccountId,
+      },
+    });
+
+    console.log(`Milestone ${milestoneId} refunded`);
+  } else if (jobId) {
+    // Full job refund
     await supabase
       .from("job_payments")
       .update({ status: "refunded" })
       .eq("stripe_payment_intent_id", paymentIntentId);
 
-    // Update job status
-    await supabase
-      .from("jobs")
-      .update({
-        status: "refunded",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", payment.job_id);
-
-    console.log(`Charge refunded for job ${payment.job_id}`);
-  }
-}
-
-// Invoice event handlers for Stripe Invoicing
-
-async function handleInvoicePaid(supabase: any, invoice: Stripe.Invoice) {
-  const jobId = invoice.metadata?.job_id;
-  
-  // Try to find job by invoice ID if not in metadata
-  let actualJobId = jobId;
-  if (!actualJobId) {
-    const { data: job } = await supabase
-      .from("jobs")
-      .select("id")
-      .eq("stripe_invoice_id", invoice.id)
-      .single();
-    actualJobId = job?.id;
-  }
-
-  if (!actualJobId) {
-    console.log("No job found for invoice:", invoice.id);
-    return;
-  }
-
-  // Get charge ID reliably - invoice.charge can be null, need to fetch from payment intent
-  let chargeId: string | null = null;
-  
-  if (invoice.charge) {
-    chargeId = typeof invoice.charge === 'string' ? invoice.charge : invoice.charge.id;
-  } else if (invoice.payment_intent) {
-    // Fetch payment intent to get the charge
-    try {
-      const piId = typeof invoice.payment_intent === 'string' 
-        ? invoice.payment_intent 
-        : invoice.payment_intent.id;
-      
-      const paymentIntent = await stripe.paymentIntents.retrieve(piId, {
-        expand: ['latest_charge']
-      });
-      
-      if (paymentIntent.latest_charge) {
-        chargeId = typeof paymentIntent.latest_charge === 'string'
-          ? paymentIntent.latest_charge
-          : paymentIntent.latest_charge.id;
-      }
-    } catch (e) {
-      console.error('Error fetching payment intent for charge ID:', e);
-    }
-  }
-
-  console.log(`Invoice ${invoice.id} - resolved charge ID: ${chargeId}`);
-
-  // Update job_payments record with payment intent and charge
-  if (invoice.payment_intent || chargeId) {
-    await supabase
-      .from("job_payments")
-      .update({
-        status: "succeeded",
-        stripe_payment_intent_id: typeof invoice.payment_intent === 'string' 
-          ? invoice.payment_intent 
-          : invoice.payment_intent?.id || null,
-        stripe_charge_id: chargeId,
-      })
-      .eq("job_id", actualJobId);
-  }
-
-  // Update job status to funded
-  await supabase
-    .from("jobs")
-    .update({
-      status: "funded",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", actualJobId)
-    .eq("status", "unfunded"); // Only update if still unfunded
-
-  // Log to ledger
-  await supabase.from("ledger_entries").insert({
-    job_id: actualJobId,
-    event_type: "invoice_paid",
-    details: {
-      invoice_id: invoice.id,
-      invoice_number: invoice.number,
-      amount_paid: invoice.amount_paid,
-      currency: invoice.currency,
-      payment_intent: invoice.payment_intent,
-      customer_id: invoice.customer,
-    },
-  });
-
-  console.log(`Invoice ${invoice.id} paid for job ${actualJobId}. Amount: ${invoice.amount_paid / 100} ${invoice.currency?.toUpperCase()}`);
-}
-
-async function handleInvoicePaymentFailed(supabase: any, invoice: Stripe.Invoice) {
-  const jobId = invoice.metadata?.job_id;
-  
-  // Try to find job by invoice ID
-  let actualJobId = jobId;
-  if (!actualJobId) {
-    const { data: job } = await supabase
-      .from("jobs")
-      .select("id")
-      .eq("stripe_invoice_id", invoice.id)
-      .single();
-    actualJobId = job?.id;
-  }
-
-  if (!actualJobId) {
-    console.log("No job found for failed invoice:", invoice.id);
-    return;
-  }
-
-  // Update job_payments record
-  await supabase
-    .from("job_payments")
-    .update({ status: "failed" })
-    .eq("job_id", actualJobId);
-
-  // Log to ledger
-  await supabase.from("ledger_entries").insert({
-    job_id: actualJobId,
-    event_type: "invoice_payment_failed",
-    details: {
-      invoice_id: invoice.id,
-      invoice_number: invoice.number,
-      attempt_count: invoice.attempt_count,
-      next_payment_attempt: invoice.next_payment_attempt,
-    },
-  });
-
-  console.log(`Invoice payment failed for job ${actualJobId}`);
-}
-
-async function handleInvoiceVoided(supabase: any, invoice: Stripe.Invoice) {
-  const jobId = invoice.metadata?.job_id;
-  
-  let actualJobId = jobId;
-  if (!actualJobId) {
-    const { data: job } = await supabase
-      .from("jobs")
-      .select("id")
-      .eq("stripe_invoice_id", invoice.id)
-      .single();
-    actualJobId = job?.id;
-  }
-
-  if (actualJobId) {
-    // Update job_payments
-    await supabase
-      .from("job_payments")
-      .update({ status: "cancelled" })
-      .eq("job_id", actualJobId);
-
-    // Log to ledger
     await supabase.from("ledger_entries").insert({
-      job_id: actualJobId,
-      event_type: "invoice_voided",
+      job_id: jobId,
+      event_type: "job_refunded",
       details: {
-        invoice_id: invoice.id,
-        invoice_number: invoice.number,
+        charge_id: charge.id,
+        amount_refunded: charge.amount_refunded,
+        connected_account_id: connectedAccountId,
       },
     });
 
-    console.log(`Invoice voided for job ${actualJobId}`);
+    console.log(`Job ${jobId} payment refunded`);
   }
 }
 
-async function logToLedger(supabase: any, event: Stripe.Event) {
+// =================================================================
+// LEDGER LOGGING
+// =================================================================
+
+async function logToLedger(
+  supabase: any, 
+  event: Stripe.Event,
+  connectedAccountId: string | null
+) {
   // Extract job_id from event if available
   let jobId = null;
   const data = event.data.object as any;
@@ -509,11 +550,12 @@ async function logToLedger(supabase: any, event: Stripe.Event) {
 
   await supabase.from("ledger_entries").insert({
     job_id: jobId,
-    event_type: event.type,
+    event_type: `stripe_${event.type}`,
     details: {
       stripe_event_id: event.id,
       object_id: data.id,
       livemode: event.livemode,
+      connected_account_id: connectedAccountId,
     },
   });
 }

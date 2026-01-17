@@ -21,7 +21,8 @@ import { Input } from "../../components/ui/Input";
  * - Cancel job (when appropriate)
  */
 
-// Status configuration
+// Status configuration - Direct Charges Model
+// NOTE: No 'unfunded' or 'funded' states - payments happen at approval time
 const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: string; bgColor: string; description: string }> = {
   draft: {
     label: "Draft",
@@ -36,20 +37,6 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: str
     color: "text-yellow-500",
     bgColor: "bg-yellow-100 dark:bg-yellow-900/30",
     description: "Waiting for agency to accept the job"
-  },
-  unfunded: {
-    label: "Awaiting Payment",
-    icon: "payments",
-    color: "text-orange-500",
-    bgColor: "bg-orange-100 dark:bg-orange-900/30",
-    description: "Agency accepted - fund the job to begin work"
-  },
-  funded: {
-    label: "Funded",
-    icon: "account_balance_wallet",
-    color: "text-blue-500",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30",
-    description: "Payment received - agency can start work"
   },
   in_progress: {
     label: "In Progress",
@@ -77,14 +64,14 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: str
     icon: "thumb_up",
     color: "text-green-500",
     bgColor: "bg-green-100 dark:bg-green-900/30",
-    description: "Work approved - payment is being released"
+    description: "Work approved - ready for payment"
   },
   paid_out: {
     label: "Completed",
     icon: "paid",
     color: "text-green-600",
     bgColor: "bg-green-100 dark:bg-green-900/30",
-    description: "Job complete - agency has been paid"
+    description: "Job complete - payment successful"
   },
   cancelled: {
     label: "Cancelled",
@@ -92,13 +79,6 @@ const STATUS_CONFIG: Record<JobStatus, { label: string; icon: string; color: str
     color: "text-red-500",
     bgColor: "bg-red-100 dark:bg-red-900/30",
     description: "Job was cancelled"
-  },
-  refunded: {
-    label: "Refunded",
-    icon: "undo",
-    color: "text-red-500",
-    bgColor: "bg-red-100 dark:bg-red-900/30",
-    description: "Payment was refunded"
   },
   declined: {
     label: "Declined",
@@ -144,9 +124,11 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
   isLoading,
 }) => {
   const statusConfig = MILESTONE_STATUS_CONFIG[milestone.status];
-  const canDelete = jobStatus === "unfunded" && milestone.status === "pending";
+  // Direct charges: can delete pending milestones before work starts
+  const canDelete = (jobStatus === "pending" || jobStatus === "in_progress") && milestone.status === "pending";
   const canApprove = milestone.status === "submitted";
-  const canRelease = milestone.status === "approved";
+  // Direct charges: approved triggers payment (no separate release step)
+  const canPay = milestone.status === "approved";
   const canRequestRevision = milestone.status === "submitted";
 
   return (
@@ -200,7 +182,7 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
               Revision
             </Button>
           )}
-          {canRelease && (
+          {canPay && (
             <Button
               variant="primary"
               size="sm"
@@ -208,7 +190,7 @@ const MilestoneCard: React.FC<MilestoneCardProps> = ({
               disabled={isLoading}
               className="bg-green-600 hover:bg-green-700"
             >
-              {isLoading ? <Icon name="hourglass_empty" className="animate-spin" /> : "Release Payment"}
+              {isLoading ? <Icon name="hourglass_empty" className="animate-spin" /> : "Pay Now"}
             </Button>
           )}
           {canDelete && (
@@ -246,8 +228,10 @@ export const JobDetail: React.FC = () => {
   // Handle payment redirect result
   useEffect(() => {
     const paymentStatus = searchParams.get("payment");
+    const milestonePaymentStatus = searchParams.get("milestone_payment");
+    
     if (paymentStatus === "success") {
-      showToast("Payment successful! The job is now funded.", "success");
+      showToast("Payment successful! The agency has received your payment.", "success");
       // Clear the query param
       setSearchParams({});
       // Reload job to get updated status
@@ -414,36 +398,14 @@ export const JobDetail: React.FC = () => {
     }
   };
 
+  // handleFundJob - DEPRECATED in direct charges model
+  // In the new model, payment happens at approval time, not upfront
+  // This function is kept for backwards compatibility but should not be called
   const handleFundJob = async () => {
-    if (!job) return;
-    
-    setActionLoading("funded");
-    
-    try {
-      // Call Supabase Edge Function to create Stripe Checkout Session
-      // Checkout always collects real payment (no credit balance auto-apply)
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
-        body: { 
-          job_id: job.id,
-        }
-      });
-      
-      if (error) throw error;
-      
-      if (data?.checkout_url) {
-        // Redirect to Stripe Checkout for payment
-        window.location.href = data.checkout_url;
-      } else {
-        throw new Error("No checkout URL returned");
-      }
-    } catch (error: any) {
-      console.error("Error creating checkout:", error);
-      showToast(error.message || "Failed to create checkout", "error");
-      setActionLoading(null);
-    }
-    // Note: Don't reset actionLoading here as we're redirecting
+    showToast("Direct payment model: Pay when you approve the work", "info");
   };
 
+  // Approve work and initiate direct payment to agency
   const handleApproveWork = async () => {
     if (!job) return;
     
@@ -453,21 +415,25 @@ export const JobDetail: React.FC = () => {
       // First update status to approved
       await updateJobStatus("approved");
       
-      // Then trigger the transfer to agency
-      const { data, error } = await supabase.functions.invoke('transfer-to-agency', {
+      // Create direct charge checkout session to agency
+      const { data, error } = await supabase.functions.invoke('create-checkout-session', {
         body: { job_id: job.id }
       });
       
       if (error) throw error;
       
-      showToast(`Work approved! ${data?.payout_amount} ${data?.currency} released to agency.`, "success");
-      await loadPayments();
+      if (data?.checkout_url) {
+        // Redirect to Stripe Checkout - payment goes directly to agency
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
     } catch (error: any) {
-      console.error("Error approving work:", error);
-      showToast(error.message || "Failed to release funds", "error");
-    } finally {
+      console.error("Error creating payment:", error);
+      showToast(error.message || "Failed to initiate payment", "error");
       setActionLoading(null);
     }
+    // Note: Don't reset actionLoading here as we're redirecting
   };
 
   const handleRequestRevision = async () => {
@@ -587,30 +553,30 @@ export const JobDetail: React.FC = () => {
     }
   };
 
+  // Direct charge payment for a milestone
   const handleReleaseMilestone = async (milestone: Milestone) => {
     setActionLoading(`release-${milestone.id}`);
 
     try {
-      const { data, error } = await supabase.functions.invoke("release-milestone", {
+      // Create direct charge checkout session for this milestone
+      const { data, error } = await supabase.functions.invoke("pay-milestone", {
         body: { milestone_id: milestone.id },
       });
 
       if (error) throw error;
 
-      await loadMilestones();
-      await loadPayments();
-      await loadJob();
-      
-      showToast(
-        `Payment of ${formatCurrency(milestone.amount)} released to agency!`,
-        "success"
-      );
+      if (data?.checkout_url) {
+        // Redirect to Stripe Checkout - payment goes directly to agency
+        window.location.href = data.checkout_url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
     } catch (error: any) {
-      console.error("Error releasing milestone:", error);
-      showToast(error.message || "Failed to release payment", "error");
-    } finally {
+      console.error("Error creating milestone payment:", error);
+      showToast(error.message || "Failed to initiate payment", "error");
       setActionLoading(null);
     }
+    // Note: Don't reset actionLoading here as we're redirecting
   };
 
   const handleRequestMilestoneRevision = async (milestone: Milestone) => {
@@ -761,7 +727,7 @@ export const JobDetail: React.FC = () => {
                   </span>
                 )}
               </h2>
-              {job.status === "unfunded" && (
+              {job.status === "pending" && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -774,7 +740,7 @@ export const JobDetail: React.FC = () => {
             </div>
 
             {/* Add Milestone Form */}
-            {showAddMilestone && job.status === "unfunded" && (
+            {showAddMilestone && job.status === "pending" && (
               <div className="mb-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
                 <div className="space-y-3">
                   <Input
@@ -845,9 +811,9 @@ export const JobDetail: React.FC = () => {
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 <Icon name="flag" className="text-4xl mb-2 opacity-50" />
                 <p className="text-sm">No milestones defined</p>
-                {job.status === "unfunded" && (
+                {job.status === "pending" && (
                   <p className="text-xs mt-1">
-                    Add milestones to split the payment into phases, or fund the full amount at once.
+                    Add milestones to split the payment into phases.
                   </p>
                 )}
               </div>
@@ -877,22 +843,6 @@ export const JobDetail: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Actions</h2>
             
             <div className="space-y-3">
-              {job.status === "unfunded" && (
-                <Button
-                  variant="primary"
-                  className="w-full"
-                  onClick={handleFundJob}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === "funded" ? (
-                    <Icon name="hourglass_empty" className="mr-2 animate-spin" />
-                  ) : (
-                    <Icon name="payments" className="mr-2" />
-                  )}
-                  Fund Job ({formatCurrency(job.amount)})
-                </Button>
-              )}
-
               {job.status === "review" && (
                 <>
                   <Button
@@ -906,7 +856,7 @@ export const JobDetail: React.FC = () => {
                     ) : (
                       <Icon name="thumb_up" className="mr-2" />
                     )}
-                    Approve & Release Payment
+                    Approve & Pay
                   </Button>
                   <Button
                     variant="outline"
@@ -920,7 +870,18 @@ export const JobDetail: React.FC = () => {
                 </>
               )}
 
-              {["draft", "pending", "unfunded"].includes(job.status) && (
+              {/* Direct charges: Info notice for payment model */}
+              {["pending", "in_progress"].includes(job.status) && (
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <Icon name="info" className="inline mr-1" />
+                    Payment will be collected when you approve the completed work. 
+                    Funds go directly to the agency.
+                  </p>
+                </div>
+              )}
+
+              {["draft", "pending"].includes(job.status) && (
                 <Button
                   variant="ghost"
                   className="w-full text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
@@ -932,7 +893,7 @@ export const JobDetail: React.FC = () => {
                 </Button>
               )}
 
-              {["paid_out", "cancelled", "refunded"].includes(job.status) && (
+              {["paid_out", "cancelled"].includes(job.status) && (
                 <p className="text-center text-gray-500 dark:text-gray-400 py-4">
                   No actions available for this job
                 </p>

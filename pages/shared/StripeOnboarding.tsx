@@ -415,37 +415,9 @@ export const StripeOnboarding: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">
-            Stripe Connect
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Set up payments to receive funds from clients
-          </p>
-        </div>
-      </div>
-
       <Card>
         {renderContent()}
       </Card>
-
-      {/* Info Section */}
-      <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6">
-        <div className="flex gap-4">
-          <Icon name="info" className="text-blue-500 text-2xl flex-shrink-0" />
-          <div>
-            <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
-              How payments work on ScalingAD
-            </h3>
-            <ul className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-              <li>• Clients fund jobs upfront, and funds are held securely by the platform</li>
-              <li>• When you complete work and the client approves, funds are released to you</li>
-              <li>• You'll receive payouts directly to your connected bank account</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };

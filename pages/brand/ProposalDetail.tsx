@@ -288,7 +288,7 @@ export default function ProposalDetail() {
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                Held in escrow until work approved
+                Pay when work is approved
               </p>
             </div>
           </Card>

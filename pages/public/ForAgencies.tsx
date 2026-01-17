@@ -177,7 +177,7 @@ export const ForAgencies: React.FC = () => {
                   "Free to join",
                   "Unlimited matches",
                   "Verified badge",
-                  "Escrow protection",
+                  "Direct payments",
                 ].map((item, index) => (
                   <li key={index} className="flex items-center gap-3 text-white">
                     <span className="text-white">✓</span>

@@ -239,7 +239,7 @@ export default function CreateProposal() {
                   <li>Be clear about deliverables and timeline</li>
                   <li>Once sent, proposals cannot be edited</li>
                   <li>The client can review and accept your proposal</li>
-                  <li>Payment will be held in escrow until work is approved</li>
+                  <li>Payment is made directly to you when work is approved</li>
                 </ul>
               </div>
             </div>

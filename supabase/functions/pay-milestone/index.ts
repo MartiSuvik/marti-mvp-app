@@ -1,7 +1,7 @@
-// Supabase Edge Function: create-checkout-session
-// Creates a Stripe Checkout Session using DIRECT CHARGES
+// Supabase Edge Function: pay-milestone
+// Creates a Stripe Checkout Session for a single milestone using DIRECT CHARGES
 // Payment goes directly to the agency's connected Stripe account
-// Platform NEVER holds funds - this is intentional for liability/regulatory reasons
+// Platform NEVER holds funds - this is the core of the direct payment model
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -50,59 +50,67 @@ serve(async (req) => {
     }
 
     // Get request body
-    const { job_id, success_url, cancel_url } = await req.json();
+    const { milestone_id, success_url, cancel_url } = await req.json();
 
-    if (!job_id) {
-      return new Response(JSON.stringify({ error: "job_id is required" }), {
+    if (!milestone_id) {
+      return new Response(JSON.stringify({ error: "milestone_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Get job details with agency
-    const { data: job, error: jobError } = await supabase
-      .from("jobs")
+    // Get milestone with job and agency details
+    const { data: milestone, error: milestoneError } = await supabase
+      .from("milestones")
       .select(`
         id,
+        job_id,
         title,
         description,
-        business_id,
-        agency_id,
         amount,
         currency,
         status,
-        has_milestones,
-        agencies (
+        order_index,
+        jobs (
           id,
-          name,
-          stripe_account_id,
-          stripe_onboarding_complete,
-          stripe_payouts_enabled
+          title,
+          business_id,
+          agency_id,
+          status,
+          agencies (
+            id,
+            name,
+            stripe_account_id,
+            stripe_onboarding_complete,
+            stripe_payouts_enabled
+          )
         )
       `)
-      .eq("id", job_id)
+      .eq("id", milestone_id)
       .single();
 
-    if (jobError || !job) {
-      return new Response(JSON.stringify({ error: "Job not found" }), {
+    if (milestoneError || !milestone) {
+      return new Response(JSON.stringify({ error: "Milestone not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify job belongs to this user
+    const job = milestone.jobs as any;
+    const agency = job?.agencies as any;
+
+    // Verify the user is the business owner
     if (job.business_id !== user.id) {
-      return new Response(JSON.stringify({ error: "Unauthorized to pay for this job" }), {
+      return new Response(JSON.stringify({ error: "Unauthorized to pay for this milestone" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // For non-milestone jobs, verify job is in approved status
-    // (Business has approved the work and is now paying)
-    if (!job.has_milestones && job.status !== "approved") {
+    // Verify milestone is in approved status (business has approved the work)
+    if (milestone.status !== "approved") {
       return new Response(JSON.stringify({ 
-        error: `Job must be approved before payment. Current status: ${job.status}` 
+        error: `Milestone must be approved before payment. Current status: ${milestone.status}` 
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -110,7 +118,6 @@ serve(async (req) => {
     }
 
     // Verify agency has Stripe account
-    const agency = job.agencies as any;
     if (!agency?.stripe_account_id) {
       return new Response(JSON.stringify({ error: "Agency has not connected Stripe account" }), {
         status: 400,
@@ -129,7 +136,7 @@ serve(async (req) => {
     }
 
     // Convert amount to cents
-    const amountInCents = Math.round(job.amount * 100);
+    const amountInCents = Math.round(milestone.amount * 100);
 
     // Determine origin for redirect URLs
     const origin = req.headers.get("origin") || "https://scalingad.com";
@@ -146,12 +153,12 @@ serve(async (req) => {
         line_items: [
           {
             price_data: {
-              currency: job.currency.toLowerCase(),
+              currency: milestone.currency.toLowerCase(),
               product_data: {
-                name: job.title || "Project Payment",
-                description: job.description 
-                  ? job.description.substring(0, 500) 
-                  : `Payment to ${agency.name}`,
+                name: `Milestone: ${milestone.title}`,
+                description: milestone.description 
+                  ? milestone.description.substring(0, 500) 
+                  : `Milestone payment for ${job.title}`,
               },
               unit_amount: amountInCents,
             },
@@ -162,21 +169,23 @@ serve(async (req) => {
         // Metadata for tracking
         payment_intent_data: {
           metadata: {
+            milestone_id: milestone.id,
             job_id: job.id,
             agency_id: job.agency_id,
             business_id: job.business_id,
             platform: "scalingad",
-            payment_type: "job_full_payment",
+            payment_type: "milestone_payment",
           },
         },
         metadata: {
+          milestone_id: milestone.id,
           job_id: job.id,
           agency_id: job.agency_id,
           business_id: job.business_id,
-          payment_type: "job_full_payment",
+          payment_type: "milestone_payment",
         },
-        success_url: success_url || `${origin}/brand/jobs/${job.id}?payment=success`,
-        cancel_url: cancel_url || `${origin}/brand/jobs/${job.id}?payment=cancelled`,
+        success_url: success_url || `${origin}/brand/jobs/${job.id}?milestone_payment=success&milestone_id=${milestone.id}`,
+        cancel_url: cancel_url || `${origin}/brand/jobs/${job.id}?milestone_payment=cancelled&milestone_id=${milestone.id}`,
       },
       {
         // CRITICAL: This header makes it a DIRECT CHARGE on the connected account
@@ -184,25 +193,28 @@ serve(async (req) => {
       }
     );
 
-    // Create job_payments record (pending)
-    await supabase.from("job_payments").insert({
-      job_id: job.id,
-      stripe_payment_intent_id: session.payment_intent as string || session.id,
-      amount: job.amount,
-      status: "pending",
-    });
+    // Update milestone with checkout session ID
+    await supabase
+      .from("milestones")
+      .update({ 
+        stripe_checkout_session_id: session.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", milestone.id);
 
     // Log to ledger
     await supabase.from("ledger_entries").insert({
       job_id: job.id,
       actor_id: job.business_id,
-      event_type: "direct_charge_checkout_created",
+      event_type: "milestone_direct_charge_checkout_created",
       details: {
+        milestone_id: milestone.id,
+        milestone_title: milestone.title,
         session_id: session.id,
-        amount: job.amount,
-        currency: job.currency,
+        amount: milestone.amount,
+        currency: milestone.currency,
         agency_stripe_account_id: agency.stripe_account_id,
-        payment_type: "job_full_payment",
+        payment_type: "milestone_payment",
       },
     });
 
@@ -211,6 +223,7 @@ serve(async (req) => {
         success: true,
         checkout_url: session.url,
         session_id: session.id,
+        milestone_id: milestone.id,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -218,7 +231,7 @@ serve(async (req) => {
       }
     );
   } catch (error: any) {
-    console.error("Error creating checkout session:", error);
+    console.error("Error creating milestone checkout session:", error);
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,

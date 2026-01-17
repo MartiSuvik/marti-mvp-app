@@ -130,19 +130,17 @@ export interface Proposal {
 }
 
 // Job status state machine
+// NOTE: Direct charges model - no escrow, no platform fund holding
 export type JobStatus =
   | "draft"           // Business creating job
   | "pending"         // Waiting for agency acceptance
   | "declined"        // Agency declined the job
-  | "unfunded"        // Agency accepted, awaiting payment
-  | "funded"          // Business paid, funds held on platform
-  | "in_progress"     // Agency working
+  | "in_progress"     // Agency working (starts immediately after acceptance)
   | "review"          // Agency submitted, awaiting approval
   | "revision"        // Business requested changes
-  | "approved"        // Business approved, funds releasing
-  | "paid_out"        // Agency received payment
-  | "cancelled"       // Job cancelled
-  | "refunded";       // Funds returned to business
+  | "approved"        // Business approved work
+  | "paid_out"        // All payments completed
+  | "cancelled";      // Job cancelled
 
 // Job source - how the job was created
 export type JobSource = "proposal" | "direct";
@@ -173,12 +171,13 @@ export interface Job {
 }
 
 // Job milestone for phased payments
+// NOTE: Direct charges - each milestone triggers a direct payment to agency
 export type MilestoneStatus = 
   | "pending"      // Not started yet
   | "in_progress"  // Agency working on it
   | "submitted"    // Agency submitted for review
-  | "approved"     // Business approved, ready for payment
-  | "paid"         // Payment transferred to agency
+  | "approved"     // Business approved, awaiting payment initiation
+  | "paid"         // Payment completed (direct charge to agency)
   | "revision";    // Business requested changes
 
 export interface Milestone {
@@ -190,7 +189,10 @@ export interface Milestone {
   currency: string;
   orderIndex: number;
   status: MilestoneStatus;
-  stripeTransferId?: string;
+  // Direct charge tracking (replaces transfer tracking)
+  stripePaymentIntentId?: string;
+  stripeChargeId?: string;
+  stripeCheckoutSessionId?: string;
   paidAt?: string;
   createdAt: string;
   updatedAt: string;
