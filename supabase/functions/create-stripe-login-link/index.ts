@@ -1,5 +1,6 @@
 // Supabase Edge Function: create-stripe-login-link
-// Creates a login link for an Express Connect account to access their dashboard
+// Creates a login link for a Standard Connect account to access the full Stripe Dashboard
+// Standard accounts have full dashboard access (not Express dashboard)
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -49,7 +50,7 @@ serve(async (req) => {
     // Get agency's Stripe account ID
     const { data: agency, error: agencyError } = await supabase
       .from("agencies")
-      .select("stripe_account_id")
+      .select("stripe_account_id, stripe_onboarding_complete")
       .eq("id", agency_id)
       .single();
 
@@ -60,7 +61,40 @@ serve(async (req) => {
       });
     }
 
-    // Create login link for Express dashboard
+    // Verify the Stripe account status before creating login link
+    // Standard accounts need to complete onboarding to access the dashboard
+    const stripeAccount = await stripe.accounts.retrieve(agency.stripe_account_id);
+
+    // Check if onboarding is complete
+    if (!stripeAccount.details_submitted) {
+      return new Response(
+        JSON.stringify({
+          error: "Stripe onboarding incomplete",
+          message: "Please complete your Stripe onboarding before accessing the dashboard.",
+          onboarding_complete: false,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Check account type - must be Standard
+    if (stripeAccount.type !== "standard") {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid account type",
+          message: `This account is type "${stripeAccount.type}". Only Standard accounts are supported.`,
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Create login link for Standard account to access full Stripe Dashboard
     const loginLink = await stripe.accounts.createLoginLink(agency.stripe_account_id);
 
     return new Response(

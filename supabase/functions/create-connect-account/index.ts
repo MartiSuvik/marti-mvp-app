@@ -1,5 +1,6 @@
 // Supabase Edge Function: create-connect-account
-// Creates a Stripe Connect account for an agency and returns the onboarding link
+// Creates a Stripe Connect STANDARD account for an agency
+// Standard accounts are required for direct charges where agency is merchant of record
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -65,16 +66,12 @@ serve(async (req) => {
 
     let stripeAccountId = agency.stripe_account_id;
 
-    // Create Stripe Connect account if it doesn't exist
+    // Create Stripe Connect STANDARD account if it doesn't exist
+    // Standard accounts: agency is merchant of record, handles disputes, has full dashboard
     if (!stripeAccountId) {
       const account = await stripe.accounts.create({
-        type: "express", // Using Express for simplest onboarding
+        type: "standard", // Standard for direct charges - agency is merchant of record
         country: accountCountry,
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
-        },
-        business_type: "company",
         metadata: {
           agency_id: agency_id,
           platform: "scalingad",

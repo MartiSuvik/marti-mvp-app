@@ -142,6 +142,27 @@ Use custom hooks for messaging:
 npm run dev     # Start dev server on port 3000
 npm run build   # Production build
 npm run preview # Preview production build
+
+# Supabase Edge Functions
+supabase functions deploy <function-name>  # Deploy a specific edge function
+supabase functions deploy                  # Deploy all edge functions
+supabase secrets list                      # List environment secrets
+supabase secrets set KEY=value             # Set environment secret
+```
+
+## Critical Development Rules
+
+### Edge Function Deployment
+**ALWAYS mention edge function deployment after modifying edge function code.**
+
+When you update any file in `supabase/functions/*/index.ts`, you MUST tell the user to deploy:
+```bash
+supabase functions deploy <function-name>
+```
+
+Example: After updating `create-stripe-login-link/index.ts`, instruct:
+```bash
+supabase functions deploy create-stripe-login-link
 ```
 
 ## Environment Variables
