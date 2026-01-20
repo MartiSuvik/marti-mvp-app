@@ -6,6 +6,28 @@ import { Icon } from "../../components/Icon";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { Card } from "../../components/ui/Card";
+import { MultiSelect } from "../../components/ui/MultiSelect";
+
+// Platform options for agencies
+const PLATFORM_OPTIONS = [
+  { value: "meta", label: "Meta (Facebook/Instagram)" },
+  { value: "google", label: "Google Ads" },
+];
+
+// Capability options for agencies
+const CAPABILITY_OPTIONS = [
+  { value: "paid_social", label: "Paid Social" },
+  { value: "paid_search", label: "Paid Search (SEM)" },
+  { value: "display", label: "Display Advertising" },
+  { value: "video", label: "Video Advertising" },
+  { value: "creative", label: "Creative Production" },
+  { value: "analytics", label: "Analytics & Tracking" },
+  { value: "conversion_optimization", label: "Conversion Optimization" },
+  { value: "email_marketing", label: "Email Marketing" },
+  { value: "content_marketing", label: "Content Marketing" },
+  { value: "influencer", label: "Influencer Marketing" },
+  { value: "seo", label: "SEO" },
+];
 
 export const Profile: React.FC = () => {
   const { agency, refreshProfile } = useAuth();
@@ -16,6 +38,8 @@ export const Profile: React.FC = () => {
     description: "",
     logoUrl: "",
     contactEmail: "",
+    platforms: [] as string[],
+    capabilities: [] as string[],
   });
 
   useEffect(() => {
@@ -25,6 +49,8 @@ export const Profile: React.FC = () => {
         description: agency.description || "",
         logoUrl: agency.logoUrl || "",
         contactEmail: agency.contactEmail || "",
+        platforms: agency.platforms || [],
+        capabilities: agency.capabilities || [],
       });
     }
   }, [agency]);
@@ -87,6 +113,8 @@ export const Profile: React.FC = () => {
         description: formData.description,
         logo_url: formData.logoUrl,
         contact_email: formData.contactEmail,
+        platforms: formData.platforms,
+        capabilities: formData.capabilities,
         updated_at: new Date().toISOString(),
       };
 
@@ -237,63 +265,32 @@ export const Profile: React.FC = () => {
           </form>
         </Card>
 
-        {/* Capabilities Card (Read-only for now) */}
+        {/* Capabilities Card - Now Editable */}
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             Capabilities & Expertise
           </h3>
           <div className="space-y-4">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                Platforms
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {agency.platforms?.map((platform) => (
-                  <span
-                    key={platform}
-                    className="px-3 py-1 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full"
-                  >
-                    {platform}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                Industries
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {agency.industries?.map((industry) => (
-                  <span
-                    key={industry}
-                    className="px-3 py-1 text-sm bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full"
-                  >
-                    {industry}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
-                Capabilities
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {agency.capabilities?.map((cap) => (
-                  <span
-                    key={cap}
-                    className="px-3 py-1 text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full"
-                  >
-                    {cap}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <MultiSelect
+              label="Platforms"
+              options={PLATFORM_OPTIONS}
+              value={formData.platforms}
+              onChange={(value) => setFormData({ ...formData, platforms: value })}
+            />
+            
+            <MultiSelect
+              label="Capabilities"
+              options={CAPABILITY_OPTIONS}
+              value={formData.capabilities}
+              onChange={(value) => setFormData({ ...formData, capabilities: value })}
+            />
           </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-            Contact support to update your capabilities and expertise.
-          </p>
+          
+          <div className="flex justify-end mt-6">
+            <Button onClick={handleSubmit} disabled={loading}>
+              {loading ? "Saving..." : "Save Capabilities"}
+            </Button>
+          </div>
         </Card>
       </div>
     </div>

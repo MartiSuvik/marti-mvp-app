@@ -625,25 +625,6 @@ export const ProjectDetail: React.FC = () => {
                 </>
               )}
 
-              {/* In Progress - Submit for Review */}
-              {job.status === "in_progress" && (
-                <Button
-                  variant="primary"
-                  className="w-full"
-                  onClick={handleSubmitForReview}
-                  disabled={actionLoading !== null}
-                >
-                  {actionLoading === "review" ? (
-                    "Processing..."
-                  ) : (
-                    <>
-                      <Icon name="send" className="mr-2" />
-                      Submit for Review
-                    </>
-                  )}
-                </Button>
-              )}
-
               {/* Revision - Resubmit */}
               {job.status === "revision" && (
                 <Button

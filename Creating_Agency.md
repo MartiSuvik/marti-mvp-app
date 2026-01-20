@@ -8,7 +8,6 @@ INSERT INTO agencies (
   description,
   logo_url,
   platforms,
-  industries,
   spend_brackets,
   objectives,
   capabilities,
@@ -68,7 +67,7 @@ BEGIN
 
   -- Create agency
   INSERT INTO agencies (
-    name, description, platforms, industries, spend_brackets, 
+    name, description, platforms, spend_brackets, 
     objectives, capabilities, verified, 
     stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled,
     owner_id, contact_email

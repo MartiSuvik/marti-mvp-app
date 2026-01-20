@@ -1,6 +1,7 @@
 // Supabase Edge Function: create-stripe-login-link
-// Creates a login link for a Standard Connect account to access the full Stripe Dashboard
-// Standard accounts have full dashboard access (not Express dashboard)
+// For Standard accounts: Returns the direct Stripe Dashboard URL (agencies log in with their own credentials)
+// For Express accounts: Creates a login link via API
+// ScalingAD uses Standard accounts - agencies access dashboard.stripe.com directly
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -19,13 +20,11 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   try {
-    // Get the authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -34,10 +33,7 @@ serve(async (req) => {
       });
     }
 
-    // Create Supabase client with service role
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get request body
     const { agency_id } = await req.json();
 
     if (!agency_id) {
@@ -47,10 +43,9 @@ serve(async (req) => {
       });
     }
 
-    // Get agency's Stripe account ID
     const { data: agency, error: agencyError } = await supabase
       .from("agencies")
-      .select("stripe_account_id, stripe_onboarding_complete")
+      .select("stripe_account_id")
       .eq("id", agency_id)
       .single();
 
@@ -61,11 +56,8 @@ serve(async (req) => {
       });
     }
 
-    // Verify the Stripe account status before creating login link
-    // Standard accounts need to complete onboarding to access the dashboard
     const stripeAccount = await stripe.accounts.retrieve(agency.stripe_account_id);
 
-    // Check if onboarding is complete
     if (!stripeAccount.details_submitted) {
       return new Response(
         JSON.stringify({
@@ -80,31 +72,46 @@ serve(async (req) => {
       );
     }
 
-    // Check account type - must be Standard
-    if (stripeAccount.type !== "standard") {
+    // Standard accounts: Return direct dashboard URL (agencies log in with their own Stripe credentials)
+    if (stripeAccount.type === "standard") {
       return new Response(
         JSON.stringify({
-          error: "Invalid account type",
-          message: `This account is type "${stripeAccount.type}". Only Standard accounts are supported.`,
+          success: true,
+          url: "https://dashboard.stripe.com",
+          account_type: "standard",
+          message: "Standard accounts access the Stripe Dashboard directly. Log in with your Stripe credentials.",
         }),
         {
-          status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
         }
       );
     }
 
-    // Create login link for Standard account to access full Stripe Dashboard
-    const loginLink = await stripe.accounts.createLoginLink(agency.stripe_account_id);
+    // Express accounts: Create login link via API
+    if (stripeAccount.type === "express") {
+      const loginLink = await stripe.accounts.createLoginLink(agency.stripe_account_id);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          url: loginLink.url,
+          account_type: "express",
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    }
 
     return new Response(
       JSON.stringify({
-        success: true,
-        url: loginLink.url,
+        error: "Unsupported account type",
+        message: `Account type "${stripeAccount.type}" is not supported.`,
       }),
       {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
       }
     );
   } catch (error) {

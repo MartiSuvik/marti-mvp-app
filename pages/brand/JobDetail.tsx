@@ -232,15 +232,24 @@ export const JobDetail: React.FC = () => {
     
     if (paymentStatus === "success") {
       showToast("Payment successful! The agency has received your payment.", "success");
-      // Clear the query param
       setSearchParams({});
-      // Reload job to get updated status
       if (id && user) {
         loadJob();
         loadPayments();
       }
     } else if (paymentStatus === "cancelled") {
       showToast("Payment was cancelled.", "info");
+      setSearchParams({});
+    } else if (milestonePaymentStatus === "success") {
+      showToast("Milestone payment successful! The agency has received your payment.", "success");
+      setSearchParams({});
+      if (id && user) {
+        loadJob();
+        loadMilestones();
+        loadPayments();
+      }
+    } else if (milestonePaymentStatus === "cancelled") {
+      showToast("Milestone payment was cancelled.", "info");
       setSearchParams({});
     }
   }, [searchParams]);
